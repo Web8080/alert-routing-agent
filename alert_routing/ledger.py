@@ -261,6 +261,18 @@ class Ledger:
         )
         return frozenset(r["stakeholder_id"] for r in cur.fetchall())
 
+    def attempted_sids(self, alert_id: str, level: int) -> frozenset[str]:
+        """Stakeholders with ANY claim at the given level — even CANCELLED.
+
+        A cancelled slot still consumes the UNIQUE (alert, sid, channel, level)
+        key, so same-level reroutes must never re-pick a stakeholder who has
+        already been attempted (R1/R2 reroute). Escalations target level+1
+        (fresh slots), so they are unaffected by this set."""
+        cur = self.conn.execute(
+            "SELECT DISTINCT stakeholder_id FROM notifications"
+            " WHERE alert_id=? AND escalation_level=?", (alert_id, level))
+        return frozenset(r["stakeholder_id"] for r in cur.fetchall())
+
     # ----------------------------------------------------------- decision log
 
     def log_decision(self, alert_id: str, seq: int, code: str, action: str,

@@ -146,6 +146,7 @@ class Router:
         ctx = json.dumps(a.context, sort_keys=True)
         lines = [
             f"[ALERT] {a.metric} threshold breached",
+            f"  for      : {step.name}",
             f"  severity : {a.severity}",
             f"  value    : {a.value} (threshold {a.threshold})",
             f"  domain   : {a.domain}",
@@ -175,6 +176,8 @@ class Router:
             current_channel=current_channel,
             current_acked=acked,
             notified_sids=self.ledger.notified_sids(self.alert.alert_id),
+            attempted_sids=self.ledger.attempted_sids(
+                self.alert.alert_id, self.plan.level if self.plan else 0),
         )
 
     def _start_send_for(self, sid: str, level: int, rationale: str) -> None:
@@ -200,7 +203,8 @@ class Router:
         if nid is None:
             self.trace.append(TraceLine(self.clock.now(), "ledger",
                                         f"claim rejected {sid}/{channel} (already notified)"))
-            backup = _next_backup(self.plan, self.snapshots, self._view())
+            backup = _next_backup(self.plan, self.snapshots, self._view(),
+                                  exclude_attempted=True)
             if backup is None:
                 self.plan.state = PlanState.FAILED
                 self.ledger.set_plan_state(a.alert_id, PlanState.FAILED)
@@ -217,6 +221,12 @@ class Router:
         if receipt == DeliveryReceipt.RETRIABLE:
             self.trace.append(TraceLine(self.clock.now(), "send",
                                         f"RETRIABLE {a.alert_id} -> {sid} via {channel}"))
+            # Release the INTENT claim: dedup (I1) only blocks a non-cancelled
+            # slot, so rule R1 can retry the SAME recipient on the next channel
+            # (a retriable send was never delivered — nothing to preserve).
+            self.ledger.set_status(nid, NotificationStatus.CANCELLED, self.clock.now())
+            self.trace.append(TraceLine(self.clock.now(), "ledger",
+                                        f"CANCELLED {nid} (retriable -> retry next channel)"))
             change = DetectedChange(ChangeType.CHANNEL_FAILED, sid, channel=channel, snapshot=snap)
             self._apply_verdict(decide(a, self.plan, self.snapshots, self.stakeholders,
                                        self._view(), change, self.config))

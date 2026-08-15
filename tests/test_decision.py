@@ -209,6 +209,21 @@ class TestPolicy(unittest.TestCase):
         codes = [d["code"] for d in r.ledger.decision_log(a.alert_id)]
         self.assertIn("R6_EXHAUSTED", codes)
 
+    # ---------- a retriable primary releases its claim so R1 delivers on a
+    # ---------- SECOND channel (the real-recipient fallback that used to die).
+    def test_retriable_send_releases_claim_for_r1_fallback(self):
+        r = make_router()
+        r.adapters["slack"] = _AlwaysFailAdapter(r.presence)   # primary is retriable
+        a = make_alert(alert_id="retry-claim", severity="HIGH")
+        r.dispatch(a)
+        r.acknowledge()
+        r.close()
+        rows = r.ledger.notifications_for(a.alert_id)
+        by = {(n["stakeholder_id"], n["channel"], n["status"]) for n in rows}
+        self.assertIn(("STK-001", "slack", "CANCELLED"), by)   # failed attempt released
+        self.assertIn(("STK-001", "email", "DELIVERED"), by)   # same recipient, next channel
+        self.assertEqual(len({n["stakeholder_id"] for n in rows}), 1)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -163,6 +163,7 @@ class LedgerView:
     current_channel: Optional[str] = None
     current_acked: bool = False
     notified_sids: frozenset[str] = frozenset()
+    attempted_sids: frozenset[str] = frozenset()
 
 
 @dataclass

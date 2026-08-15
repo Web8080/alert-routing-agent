@@ -52,8 +52,17 @@ def _next_backup(
     snapshots: dict[str, SnapshotEntry],
     view: LedgerView,
     start_after: Optional[str] = None,
+    exclude_attempted: bool = False,
 ) -> Optional[RouteStep]:
-    """Next un-notified, gated-in, online-at-snapshot backup in route order."""
+    """Next un-notified, gated-in, online-at-snapshot backup in route order.
+
+    `exclude_attempted` (SAME-LEVEL reroutes only): skip anyone with ANY claim
+    at the current level — even if every attempt was CANCELLED. A cancelled
+    slot still consumes the UNIQUE (alert, sid, channel, level) key, so
+    re-picking an exhausted recipient would crash the claim, and re-picking
+    the current recipient would loop forever. Escalations (R3/R4C, level+1)
+    keep fresh slots, so they must NOT set this flag.
+    """
     for step in plan.route:
         if start_after is not None and step.stakeholder_id == start_after:
             start_after = None
@@ -61,6 +70,8 @@ def _next_backup(
         if start_after is not None:
             continue
         if step.stakeholder_id in view.notified_sids:
+            continue
+        if exclude_attempted and step.stakeholder_id in view.attempted_sids:
             continue
         snap = snapshots.get(step.stakeholder_id)
         if snap is None or snap.gated or not snap.online:
@@ -154,7 +165,7 @@ def decide(
                 decision_code="R1_RETRY",
                 rationale=(f"Channel {change.channel} failed for {view.current_sid}; "
                            f"retrying same recipient via {ch}."))
-        backup = _next_backup(plan, snapshots, view)
+        backup = _next_backup(plan, snapshots, view, exclude_attempted=True)
         if backup is None:
             return Verdict(action="ABORT", decision_code="R6_EXHAUSTED",
                            rationale="No channels left for recipient and no backup; aborting.")
@@ -180,7 +191,7 @@ def decide(
                            f"email/ack is not recallable; escalating in parallel to "
                            f"{backup.stakeholder_id} (next-ranked)."))
         # Not acked -> abort + reroute to next backup.
-        backup = _next_backup(plan, snapshots, view)
+        backup = _next_backup(plan, snapshots, view, exclude_attempted=True)
         if backup is None:
             return Verdict(action="ABORT", decision_code="R2_NO_BACKUP",
                            rationale=f"Recipient {sid} offline mid-flight, no backup available; aborting.")
