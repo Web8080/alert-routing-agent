@@ -146,7 +146,7 @@ def decide(
         if view.current_acked:
             return Verdict(action="COMPLETE", decision_code="R1_ACKED",
                            rationale="Channel failed after delivery acknowledged; nothing to do.")
-        current_step = plan.route[0]
+        current_step = plan.current_step() or plan.route[0]
         idx = current_step.channel_index
         for ch in current_step.channel_order[idx + 1:]:
             return Verdict(

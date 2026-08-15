@@ -3,10 +3,18 @@
 """Decision policy tests: R1-R6, MIN_REROUTE_DELTA gate, ack timeout, duty manager."""
 import unittest
 
+from alert_routing.channels import BaseAdapter
 from alert_routing.decision import decide
-from alert_routing.models import Config, PlanState
+from alert_routing.models import Config, DeliveryReceipt, PlanState
 
 from .helpers import make_alert, make_router
+
+
+class _AlwaysFailAdapter(BaseAdapter):
+    """Every send fails RETRIABLE — forces the full fallback chain."""
+
+    def _do_send(self, notification, snapshot_online, health) -> DeliveryReceipt:
+        return DeliveryReceipt.RETRIABLE
 
 
 class TestPolicy(unittest.TestCase):
@@ -186,6 +194,20 @@ class TestPolicy(unittest.TestCase):
         verdict = decide(a, r.plan, r.snapshots, r.stakeholders, r._view(), None,
                          Config(), ack_timeout=True)
         self.assertEqual(verdict.decision_code, "TERMINAL")
+
+    # --------------------------- R1 retry must target the CURRENT step, not route[0]
+    def test_r1_retry_uses_current_step_after_reroute(self):
+        r = make_router()
+        for name in ("email", "slack", "sms"):
+            r.adapters[name] = _AlwaysFailAdapter(r.presence)
+        a = make_alert(alert_id="chain", severity="HIGH")
+        r.dispatch(a)                                   # full fallback + reroute chain
+        r.acknowledge()
+        r.close()
+        # Every channel fails for every candidate -> alert resolves as unresolved.
+        self.assertEqual(r.ledger.plan_state(a.alert_id), "FAILED")
+        codes = [d["code"] for d in r.ledger.decision_log(a.alert_id)]
+        self.assertIn("R6_EXHAUSTED", codes)
 
 
 if __name__ == "__main__":
