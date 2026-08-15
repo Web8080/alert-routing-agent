@@ -10,9 +10,13 @@ const state = {
   timer: null,
   speed: 8,
   currentSid: null,
+  registryData: [],
+  roster: null,
 };
 
 const $ = (id) => document.getElementById(id);
+const all = (sel) => Array.from(document.querySelectorAll(sel));
+function els(ids) { return ids.map((id) => $(id)).filter(Boolean); }
 
 function ruleKey(code) {
   if (!code) return null;
@@ -60,6 +64,7 @@ function selectedScenario() {
 }
 
 async function runDispatch(body) {
+  if ($("ai-toggle").checked) body.summary = true;
   setControls(true);
   resetView();
   const data = await api("/api/dispatch", { method: "POST", body: JSON.stringify(body) });
@@ -69,14 +74,17 @@ async function runDispatch(body) {
     return;
   }
   state.payload = data;
-  showAlertMeta(selectedScenario()?.alert);
+  showAlertMeta(data.alert || selectedScenario()?.alert);
+  $("a-id").textContent = data.alert_id || "—";
   $("plan-state").textContent = "plan: " + data.plan_state;
   $("plan-state").classList.add("ready");
+  $("plan-state-mini").textContent = "plan: " + data.plan_state;
   renderNotifications(data.notifications);
   renderRanking(data.ranking, data.notifications);
   renderDecisions(data.decisions);
-  $("timeline").textContent = data.timeline_text;
+  all("#timeline").forEach((el) => { el.textContent = data.timeline_text; });
   lightRules(data.policy_codes);
+  renderAI(data);
   playTrace(data.trace);
 }
 
@@ -104,14 +112,25 @@ function resetView() {
   $("notifications").innerHTML = "";
   $("decision-card").innerHTML = '<div class="placeholder">—</div>';
   $("decision-list").innerHTML = "";
+  $("decision-list-policy").innerHTML = "";
   $("rank-body").innerHTML = '<tr><td colspan="5" class="placeholder">ranking appears after dispatch</td></tr>';
   $("selected-line").textContent = "selected: —";
-  $("timeline").textContent = "… running dispatch …";
+  all("#timeline").forEach((el) => { el.textContent = "… running dispatch …"; });
   $("plan-state").classList.remove("ready");
   $("plan-state").textContent = "plan: …";
-  $("verdict-banner").textContent = "";
-  document.querySelectorAll(".rule").forEach((r) => r.classList.remove("on"));
-  document.querySelectorAll(".sm li").forEach((li) => li.classList.remove("done", "active"));
+  $("plan-state-mini").textContent = "plan: —";
+  $("trace-card").classList.remove("running");
+  $("trace-status").textContent = "idle";
+  for (const id of ["verdict-banner", "verdict-banner-policy"]) {
+    const el = $(id); el.textContent = ""; el.classList.add("dim");
+  }
+  els(["ai-summary", "ai-summary-policy"]).forEach((el) => {
+    el.textContent = "…";
+    el.classList.remove("ai-live");
+  });
+  els(["ai-runbook", "ai-runbook-policy"]).forEach((el) => { el.textContent = ""; });
+  all(".rule").forEach((r) => r.classList.remove("on"));
+  all(".sm li").forEach((li) => li.classList.remove("done", "active"));
 }
 
 function traceLineEl(line) {
@@ -126,7 +145,7 @@ function traceLineEl(line) {
 function updateStateMachine(kind) {
   const stage = KIND_STAGE[kind];
   if (!stage) return;
-  document.querySelectorAll(".sm li").forEach((li) => {
+  all(".sm li").forEach((li) => {
     li.classList.remove("active");
     if (li.dataset.stage === stage) li.classList.add("active");
     else if (li.dataset.stage && stageOrder(li.dataset.stage) < stageOrder(stage)) {
@@ -141,10 +160,10 @@ function stageOrder(s) {
 
 function markCurrentRecipient(sid) {
   state.currentSid = sid;
-  const rows = $("rank-body").querySelectorAll("tr[data-sid]");
+  const rows = all("#rank-body tr[data-sid]");
   rows.forEach((r) => r.classList.toggle("current", r.dataset.sid === sid));
   if (sid) {
-    const row = Array.from(rows).find((r) => r.dataset.sid === sid);
+    const row = rows.find((r) => r.dataset.sid === sid);
     if (row) $("selected-line").textContent = "selected: " + row.dataset.name + " (" + sid + ")";
   }
 }
@@ -190,6 +209,8 @@ function playTrace(trace) {
   $("trace-log").innerHTML = "";
   state.playing = true;
   $("play").textContent = "⏸ pause";
+  $("trace-card").classList.add("running");
+  $("trace-status").textContent = "running";
   tick();
 }
 
@@ -205,35 +226,43 @@ function stopPlay() {
   if (state.timer) { clearTimeout(state.timer); state.timer = null; }
   const last = $("trace-log").lastElementChild;
   if (last) last.classList.remove("hot");
+  const card = $("trace-card");
+  if (card) {
+    card.classList.remove("running");
+    if (!state.payload) $("trace-status").textContent = "idle";
+    else if (state.cursor < (state.payload.trace || []).length) $("trace-status").textContent = "paused";
+    else $("trace-status").textContent = "done";
+  }
 }
 
 function finalVerdict() {
   const actions = (state.payload.decisions || []).map((d) => d.action);
-  const b = $("verdict-banner");
-  b.innerHTML = "";
-  const span = document.createElement("span");
+  let cls = "good";
+  let text;
   if (actions.includes("ABORT")) {
-    span.className = "bad";
-    span.textContent = "verdict: ABORT — alert unresolved, context preserved in ledger";
+    cls = "bad";
+    text = "verdict: ABORT — alert unresolved, context preserved in ledger";
   } else if (actions.includes("REROUTE") || actions.includes("ESCALATE_PARALLEL")) {
-    span.className = "warn";
-    span.textContent = "verdict: " + actions[actions.length - 1] + " → " + state.payload.plan_state;
+    cls = "warn";
+    text = "verdict: " + actions[actions.length - 1] + " → " + state.payload.plan_state;
   } else if (state.payload.policy_codes.length) {
-    span.className = "good";
-    span.textContent = "verdict: " + state.payload.policy_codes[state.payload.policy_codes.length - 1] +
+    text = "verdict: " + state.payload.policy_codes[state.payload.policy_codes.length - 1] +
       " → " + state.payload.plan_state;
   } else {
-    span.className = "good";
-    span.textContent = "verdict: " + state.payload.plan_state;
+    text = "verdict: " + state.payload.plan_state;
   }
-  b.appendChild(span);
+  for (const id of ["verdict-banner", "verdict-banner-policy"]) {
+    const el = $(id);
+    el.classList.remove("dim");
+    el.innerHTML = '<span class="' + cls + '">' + escapeHtml(text) + "</span>";
+  }
 }
 
 function markFinalRecipients() {
-  const rows = $("rank-body").querySelectorAll("tr[data-sid]");
+  const rows = all("#rank-body tr[data-sid]");
   rows.forEach((r) => r.classList.remove("current"));
   for (const n of state.payload.notifications) {
-    const row = Array.from(rows).find((r) => r.dataset.sid === n.stakeholder_id);
+    const row = rows.find((r) => r.dataset.sid === n.stakeholder_id);
     if (row) row.classList.add("current");
   }
 }
@@ -271,8 +300,9 @@ function renderRanking(ranking, notifications) {
 
 function renderDecisions(decisions) {
   const card = $("decision-card");
-  const list = $("decision-list");
-  list.innerHTML = "";
+  for (const id of ["decision-list", "decision-list-policy"]) {
+    const el = $(id); el.innerHTML = "";
+  }
   if (!decisions.length) {
     card.innerHTML = '<div class="placeholder">no policy decision was needed — straight delivery</div>';
     return;
@@ -291,7 +321,9 @@ function renderDecisions(decisions) {
     div.className = "dentry";
     div.innerHTML = '<span class="d-code">' + escapeHtml(d.code) + "</span> " +
       escapeHtml(d.action) + (d.target ? " → " + escapeHtml(d.target) : "");
-    list.appendChild(div);
+    for (const id of ["decision-list", "decision-list-policy"]) {
+      $(id).appendChild(div.cloneNode(true));
+    }
   });
 }
 
@@ -312,17 +344,35 @@ function renderNotifications(rows) {
 }
 
 function lightRules(codes) {
-  document.querySelectorAll(".rule").forEach((r) => r.classList.remove("on"));
+  all(".rule").forEach((r) => r.classList.remove("on"));
   const fired = new Set((codes || []).map(ruleKey).filter(Boolean));
   fired.forEach((key) => {
-    const el = document.querySelector('.rule[data-code="' + key + '"]');
-    if (el) { el.classList.add("on"); if (key === "R5") el.classList.add("r5"); }
+    all('.rule[data-code="' + key + '"]').forEach((el) => {
+      el.classList.add("on");
+      if (key === "R5") el.classList.add("r5");
+    });
   });
 }
 
 function banner(msg, cls) {
-  const b = $("verdict-banner");
-  b.innerHTML = '<span class="' + cls + '">' + escapeHtml(msg) + "</span>";
+  for (const id of ["verdict-banner", "verdict-banner-policy"]) {
+    const el = $(id);
+    el.classList.remove("dim");
+    el.innerHTML = '<span class="' + cls + '">' + escapeHtml(msg) + "</span>";
+  }
+}
+
+function renderAI(data) {
+  const enabled = !!data.ai_enabled;
+  const badge = enabled ? "· AI live" : "· AI off — deterministic fallback";
+  els(["ai-badge", "ai-badge-policy"]).forEach((el) => { el.textContent = badge; });
+  const summary = data.ai_summary || "—";
+  els(["ai-summary", "ai-summary-policy"]).forEach((el) => {
+    el.textContent = summary;
+    el.classList.toggle("ai-live", enabled);
+  });
+  const runbook = data.ai_runbook || "";
+  els(["ai-runbook", "ai-runbook-policy"]).forEach((el) => { el.textContent = runbook; });
 }
 
 function escapeHtml(s) {
@@ -331,32 +381,247 @@ function escapeHtml(s) {
   }[c]));
 }
 
-/* ---------------- registry modal ---------------- */
+/* ---------------- registry page ---------------- */
 
-async function openRegistry() {
-  const modal = $("registry-modal");
-  modal.classList.remove("hidden");
-  const body = $("registry-body");
-  body.innerHTML = '<div class="placeholder">loading…</div>';
-  const data = await api("/api/registry");
+const CHANNEL_TYPES = ["email", "slack", "sms"];
+
+function addChannelRow(name, priority, endpoint) {
+  const div = document.createElement("div");
+  div.className = "ch-row";
+  div.innerHTML =
+    '<select class="ch-name">' + CHANNEL_TYPES.map((c) =>
+      '<option' + (c === name ? " selected" : "") + ">" + c + "</option>").join("") + "</select>" +
+    '<input class="ch-priority" type="number" min="1" value="' + (priority || 1) + '">' +
+    '<input class="ch-endpoint" placeholder="endpoint" value="' + escapeHtml(endpoint || "") + '">' +
+    '<button type="button" class="ch-del ghost">✕</button>';
+  div.querySelector(".ch-del").addEventListener("click", () => div.remove());
+  $("ed-channels").appendChild(div);
+}
+
+function openEditor(st) {
+  $("stak-editor").classList.remove("hidden");
+  $("editor-title").textContent = st ? "EDIT " + st.name : "ADD STAKEHOLDER";
+  $("ed-id").value = st ? st.id : "";
+  $("ed-name").value = st ? st.name : "";
+  $("ed-title").value = st ? st.title || "" : "";
+  $("ed-seniority").value = st ? st.seniority : 3;
+  $("ed-oncall").checked = st ? st.on_call : false;
+  $("ed-expertise").value = st
+    ? Object.entries(st.expertise || {}).map(([d, v]) => d + "=" + v).join(", ")
+    : "";
+  $("ed-channels").innerHTML = "";
+  const chans = st && st.channels.length ? st.channels : [{ name: "email", priority: 1, endpoint: "" }];
+  chans.forEach((c) => addChannelRow(c.name, c.priority, c.endpoint));
+  $("edit-status").textContent = "";
+  $("stak-editor").scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+function closeEditor() {
+  $("stak-editor").classList.add("hidden");
+}
+
+function collectStakeholder() {
+  const expertise = {};
+  $("ed-expertise").value.split(",").map((s) => s.trim()).filter(Boolean).forEach((pair) => {
+    const [d, v] = pair.split("=").map((s) => s.trim());
+    if (d) expertise[d] = Number(v);
+  });
+  const channels = [];
+  for (const row of all("#ed-channels .ch-row")) {
+    channels.push({
+      name: row.querySelector(".ch-name").value,
+      priority: Number(row.querySelector(".ch-priority").value) || 1,
+      endpoint: row.querySelector(".ch-endpoint").value.trim(),
+    });
+  }
+  return {
+    id: $("ed-id").value || undefined,
+    name: $("ed-name").value.trim(),
+    title: $("ed-title").value.trim(),
+    seniority: Number($("ed-seniority").value),
+    expertise,
+    on_call: $("ed-oncall").checked,
+    channels,
+  };
+}
+
+async function saveStakeholder(e) {
+  e.preventDefault();
+  const item = collectStakeholder();
+  $("edit-status").textContent = "saving…";
+  const data = await api("/api/registry", { method: "POST", body: JSON.stringify(item) });
+  if (data.error) { $("edit-status").textContent = data.error; return; }
+  closeEditor();
+  regFlash(data.stakeholder + " saved");
+  await loadRegistry();
+}
+
+async function deleteStakeholder(sid) {
+  if (!confirm("Remove " + sid + " from the registry? Existing ledger history is kept.")) return;
+  const data = await api("/api/registry/" + sid, { method: "DELETE" });
+  if (data.error) { regFlash(data.error, true); return; }
+  regFlash(sid + " removed");
+  await loadRegistry();
+}
+
+async function setOnCall(sid, on) {
+  const data = await api("/api/registry/" + sid + "/on-call", {
+    method: "POST",
+    body: JSON.stringify({ on_call: on }),
+  });
+  if (data.error) { regFlash(data.error, true); return; }
+  await loadRegistry();
+}
+
+function paintRegistry(body, rows) {
   body.innerHTML = "";
-  for (const s of data.stakeholders || []) {
+  for (const s of rows) {
     const div = document.createElement("div");
     div.className = "stak";
     const chips = s.channels.map((c) =>
-      '<span class="chip p' + c.priority + '">#' + c.priority + " " + escapeHtml(c.name) + "</span>"
+      '<span class="chip p' + c.priority + '">#' + c.priority + " " + escapeHtml(c.name) +
+      (c.webhook_missing ? '<span class="whint" title="no webhook in .env — demo stub delivery">*</span>' : "") +
+      "</span>"
     ).join("");
     const exp = Object.entries(s.expertise || {}).map(([d, v]) => d + " " + v + "/5").join(" · ");
     div.innerHTML =
       '<div class="shead">' +
       '<span><span class="sname">' + escapeHtml(s.name) + "</span>" +
-      '<span class="sid">' + escapeHtml(s.id) + " · " + escapeHtml(s.title) + "</span></span>" +
+      '<span class="sid">' + escapeHtml(s.id) + " · " + escapeHtml(s.title || "—") + "</span></span>" +
       "<span class='dim'>sen " + s.seniority + (s.on_call ? " · ON-CALL" : " · off-call") + "</span>" +
       "</div>" +
       '<div class="expertise">expertise: ' + escapeHtml(exp || "—") + "</div>" +
-      '<div class="sch">' + chips + "</div>";
+      '<div class="sch">' + chips + "</div>" +
+      '<div class="card-actions">' +
+      '<button type="button" class="oc-toggle' + (s.on_call ? " on" : "") + '" data-oc data-sid="' + s.id + '">' + (s.on_call ? "on-call ✓" : "set on-call") + "</button>" +
+      '<button type="button" class="ghost" data-edit data-sid="' + s.id + '">edit</button>' +
+      '<button type="button" class="ghost danger" data-del data-sid="' + s.id + '">✕</button>' +
+      "</div>";
     body.appendChild(div);
   }
+  body.querySelectorAll("[data-edit]").forEach((b) =>
+    b.addEventListener("click", () => {
+      const st = state.registryData.find((x) => x.id === b.dataset.sid);
+      if (st) openEditor(st);
+    }));
+  body.querySelectorAll("[data-del]").forEach((b) =>
+    b.addEventListener("click", () => deleteStakeholder(b.dataset.sid)));
+  body.querySelectorAll("[data-oc]").forEach((b) =>
+    b.addEventListener("click", () => {
+      const st = state.registryData.find((x) => x.id === b.dataset.sid);
+      if (st) setOnCall(st.id, !st.on_call);
+    }));
+}
+
+function paintRosterChips(rost) {
+  $("roster-day").textContent = "· " + rost.today;
+  $("roster-mode").textContent = rost.shift_mode
+    ? "roster active — today's shifts drive dispatch"
+    : "no shift covers today — falling back to registry on-call flags";
+  const wrap = $("oncall-chips");
+  wrap.innerHTML = "";
+  if (!(rost.on_call_names || []).length) {
+    wrap.innerHTML = '<div class="placeholder">nobody on call today</div>';
+    return;
+  }
+  for (const name of rost.on_call_names) {
+    const span = document.createElement("span");
+    span.className = "chip p1";
+    span.textContent = name;
+    wrap.appendChild(span);
+  }
+}
+
+function paintShiftList(shifts) {
+  const wrap = $("shift-list");
+  wrap.innerHTML = "";
+  if (!shifts.length) { wrap.innerHTML = '<div class="placeholder">no shifts yet</div>'; return; }
+  const names = (sid) => {
+    const st = state.registryData.find((x) => x.id === sid);
+    return st ? st.name : sid;
+  };
+  for (const s of shifts) {
+    const div = document.createElement("div");
+    div.className = "shift-entry";
+    div.innerHTML =
+      '<span class="shift-dates">' + escapeHtml(s.start) + " → " + escapeHtml(s.end) + "</span>" +
+      '<span class="shift-people">' + escapeHtml(names(s.primary)) +
+      (s.backups.length ? " + " + escapeHtml(s.backups.map(names).join(", ")) : "") + "</span>" +
+      '<span class="shift-actions">' +
+      '<button type="button" class="ghost" data-sh-edit data-id="' + escapeHtml(s.id) + '">edit</button>' +
+      '<button type="button" class="ghost danger" data-sh-del data-id="' + escapeHtml(s.id) + '">✕</button>' +
+      "</span>";
+    wrap.appendChild(div);
+  }
+  wrap.querySelectorAll("[data-sh-edit]").forEach((b) =>
+    b.addEventListener("click", () => {
+      const shift = (state.roster.shifts || []).find((x) => x.id === b.dataset.id);
+      if (shift) openShiftEditor(shift);
+    }));
+  wrap.querySelectorAll("[data-sh-del]").forEach((b) =>
+    b.addEventListener("click", async () => {
+      const d = await api("/api/roster/" + b.dataset.id, { method: "DELETE" });
+      if (d.error) { regFlash(d.error, true); return; }
+      regFlash("shift removed");
+      await loadRegistry();
+    }));
+}
+
+function fillShiftSelects() {
+  const primary = $("shift-primary");
+  const backups = $("shift-backups");
+  primary.innerHTML = "";
+  backups.innerHTML = "";
+  for (const s of state.registryData) {
+    primary.appendChild(new Option(s.name + " (" + s.id + ")", s.id));
+    backups.appendChild(new Option(s.name + " (" + s.id + ")", s.id));
+  }
+}
+
+function openShiftEditor(shift) {
+  fillShiftSelects();
+  $("roster-panel").classList.remove("hidden");
+  $("shift-id").value = shift ? shift.id : "";
+  $("shift-start").value = shift ? shift.start : (state.roster ? state.roster.today : "");
+  $("shift-end").value = shift ? shift.end : (state.roster ? state.roster.today : "");
+  $("shift-primary").value = shift
+    ? shift.primary
+    : (state.registryData.find((x) => x.on_call) || {}).id || "";
+  const selected = new Set(shift ? shift.backups : []);
+  for (const opt of $("shift-backups").options) opt.selected = selected.has(opt.value);
+  $("roster-panel").scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+async function saveShift(e) {
+  e.preventDefault();
+  const body = {
+    start: $("shift-start").value,
+    end: $("shift-end").value,
+    primary: $("shift-primary").value,
+    backups: Array.from($("shift-backups").selectedOptions).map((o) => o.value),
+  };
+  if ($("shift-id").value) body.id = $("shift-id").value;
+  const data = await api("/api/roster", { method: "POST", body: JSON.stringify(body) });
+  if (data.error) { regFlash(data.error, true); return; }
+  regFlash("shift saved");
+  await loadRegistry();
+}
+
+function regFlash(msg, isError) {
+  const el = $("reg-status");
+  el.textContent = msg;
+  el.classList.toggle("error", !!isError);
+  clearTimeout(regFlash._t);
+  regFlash._t = setTimeout(() => { el.textContent = ""; }, 4000);
+}
+
+async function loadRegistry() {
+  const [r, rost] = await Promise.all([api("/api/registry"), api("/api/roster")]);
+  state.registryData = r.stakeholders || [];
+  state.roster = rost;
+  paintRegistry($("registry-body"), state.registryData);
+  paintRosterChips(rost);
+  paintShiftList(rost.shifts || []);
 }
 
 /* ---------------- controls ---------------- */
@@ -390,12 +655,13 @@ function togglePlay() {
 function replay() {
   if (!state.payload) return;
   resetView();
-  showAlertMeta(selectedScenario()?.alert);
+  showAlertMeta(state.payload.alert || selectedScenario()?.alert);
   renderNotifications(state.payload.notifications);
   renderRanking(state.payload.ranking, state.payload.notifications);
   renderDecisions(state.payload.decisions);
-  $("timeline").textContent = state.payload.timeline_text;
+  all("#timeline").forEach((el) => { el.textContent = state.payload.timeline_text; });
   lightRules(state.payload.policy_codes);
+  renderAI(state.payload);
   playTrace(state.payload.trace);
 }
 
@@ -418,13 +684,16 @@ $("play").addEventListener("click", togglePlay);
 $("step").addEventListener("click", stepOnce);
 $("replay").addEventListener("click", replay);
 $("speed").addEventListener("input", (e) => { state.speed = Number(e.target.value); });
-$("registry-btn").addEventListener("click", openRegistry);
-$("registry-close").addEventListener("click", () => $("registry-modal").classList.add("hidden"));
-$("registry-modal").addEventListener("click", (e) => {
-  if (e.target === e.currentTarget) e.currentTarget.classList.add("hidden");
-});
 
-const PAGES = ["ingress", "trace", "rank", "decision", "notifications", "incident", "policybar"];
+$("stak-add").addEventListener("click", () => openEditor(null));
+$("stak-cancel").addEventListener("click", closeEditor);
+$("stak-form").addEventListener("submit", saveStakeholder);
+$("ch-add").addEventListener("click", () => addChannelRow("email", 1, ""));
+$("roster-open").addEventListener("click", () => openShiftEditor(null));
+$("shift-cancel").addEventListener("click", () => $("roster-panel").classList.add("hidden"));
+$("shift-form").addEventListener("submit", saveShift);
+
+const PAGES = ["console", "policy", "registry"];
 function switchPage(name) {
   if (!PAGES.includes(name)) return;
   for (const id of PAGES) {
@@ -434,6 +703,7 @@ function switchPage(name) {
   for (const link of document.querySelectorAll("#side-nav a")) {
     link.classList.toggle("active", link.dataset.page === name);
   }
+  if (name === "registry") loadRegistry();
   const head = document.querySelector(".page.active h2");
   if (head) document.title = "Alert Routing — " + head.textContent.replace(/\s+/g, " ").trim();
 }
@@ -443,6 +713,6 @@ document.querySelectorAll("#side-nav a").forEach((link) => {
     switchPage(link.dataset.page);
   });
 });
-switchPage("ingress");
+switchPage("console");
 
 loadScenarios();

@@ -66,6 +66,7 @@ def run_scenario_data(
     alert_id: Optional[str] = None,
     min_reroute_delta: float = 1.5,
     prose=None,
+    on_call_overrides: Optional[dict[str, bool]] = None,
 ) -> tuple[Router, str]:
     """Drive the router through a scenario *dict* (scenario JSON schema).
 
@@ -78,7 +79,8 @@ def run_scenario_data(
     config = Config(min_reroute_delta=min_reroute_delta,
                     duty_manager_ids=tuple(data.get("duty_manager_ids", [])))
     router = Router(registry_path, ledger_path, config=config, clock=clock,
-                    presence=presence, prose=prose)
+                    presence=presence, prose=prose,
+                    on_call_overrides=on_call_overrides)
 
     a = data["alert"]
     aid = alert_id or a.get("alert_id") or "alert-dispatch"

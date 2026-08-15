@@ -19,18 +19,13 @@
   </div>
 
   <nav class="side-nav" id="side-nav">
-    <a data-page="ingress" class="active">Alert</a>
-    <a data-page="trace">Trace</a>
-    <a data-page="rank">Ranking</a>
-    <a data-page="decision">Decision</a>
-    <a data-page="notifications">Ledger</a>
-    <a data-page="incident">Timeline</a>
-    <a data-page="policybar">Policy</a>
+    <a data-page="console" class="active">Console</a>
+    <a data-page="policy">Policy</a>
+    <a data-page="registry">Registry</a>
   </nav>
 
   <div class="side-foot">
     <span id="plan-state" class="pill dim">plan: —</span>
-    <button id="registry-btn" class="ghost">Registry</button>
   </div>
 </aside>
 
@@ -42,6 +37,9 @@
       <option value="">loading…</option>
     </select>
     <button id="dispatch" disabled class="primary">Dispatch</button>
+    <label for="ai-toggle" class="ai-toggle-label" title="Anthropic summary, falls back to deterministic text">
+      <input type="checkbox" id="ai-toggle" checked> AI summary
+    </label>
     <div class="spacer"></div>
     <button id="play" disabled>Pause</button>
     <button id="step" disabled>Step</button>
@@ -52,19 +50,28 @@
 
   <main class="pages">
 
-    <section class="page" id="ingress">
-      <h2><span class="h-num">01</span> ALERT</h2>
-      <dl class="kv" id="alert-kv">
-        <dt>alert_id</dt><dd id="a-id">—</dd>
-        <dt>metric</dt><dd id="a-metric">—</dd>
-        <dt>value / threshold</dt><dd id="a-value">—</dd>
-        <dt>severity</dt><dd id="a-severity">—</dd>
-        <dt>domain</dt><dd id="a-domain">—</dd>
-        <dt>context</dt><dd id="a-context">—</dd>
-      </dl>
-      <details>
-        <summary>custom alert</summary>
-        <textarea id="custom-alert" spellcheck="false">{
+    <!-- ============ CONSOLE ============ -->
+    <section class="page active" id="console">
+      <h2><span class="h-num">CONSOLE</span> live dispatch</h2>
+
+      <div class="console-grid">
+
+        <div class="card" id="alert-card">
+          <div class="card-head">
+            <span>Alert</span>
+            <span id="a-id" class="head-meta mono">—</span>
+          </div>
+          <div class="card-body col-stack">
+            <dl class="kv" id="alert-kv">
+              <dt>metric</dt><dd id="a-metric">—</dd>
+              <dt>value / threshold</dt><dd id="a-value">—</dd>
+              <dt>severity</dt><dd id="a-severity">—</dd>
+              <dt>domain</dt><dd id="a-domain">—</dd>
+              <dt>context</dt><dd id="a-context">—</dd>
+            </dl>
+            <details>
+              <summary>custom alert</summary>
+              <textarea id="custom-alert" spellcheck="false">{
   "metric": "stock_level",
   "value": 12,
   "threshold": 20,
@@ -72,81 +79,214 @@
   "domain": "inventory",
   "context": {"warehouse": "WH-4", "sku": "ACME-100"}
 }</textarea>
-        <button id="dispatch-custom" class="ghost">send</button>
-      </details>
+              <button id="dispatch-custom" class="ghost">send</button>
+            </details>
+            <div class="sub-block">
+              <div class="sub-label">State</div>
+              <ol id="state-machine" class="sm">
+                <li data-stage="received"><span class="dot"></span>RECEIVED</li>
+                <li data-stage="ranked"><span class="dot"></span>RANKED</li>
+                <li data-stage="planned"><span class="dot"></span>PLANNED</li>
+                <li data-stage="dispatching"><span class="dot"></span>DISPATCHING</li>
+                <li data-stage="event"><span class="dot"></span>EVENT</li>
+                <li data-stage="decision"><span class="dot"></span>DECISION</li>
+                <li data-stage="result"><span class="dot"></span>RESULT</li>
+              </ol>
+            </div>
+            <div class="sub-block grow">
+              <div class="sub-label">Events</div>
+              <div id="events" class="events"><div class="placeholder">presence / channel events appear here</div></div>
+            </div>
+          </div>
+        </div>
 
-      <h3>STATE</h3>
-      <ol id="state-machine" class="sm">
-        <li data-stage="received"><span class="dot"></span>RECEIVED</li>
-        <li data-stage="ranked"><span class="dot"></span>RANKED</li>
-        <li data-stage="planned"><span class="dot"></span>PLANNED</li>
-        <li data-stage="dispatching"><span class="dot"></span>DISPATCHING</li>
-        <li data-stage="event"><span class="dot"></span>EVENT</li>
-        <li data-stage="decision"><span class="dot"></span>DECISION</li>
-        <li data-stage="result"><span class="dot"></span>RESULT</li>
-      </ol>
+        <div class="card" id="trace-card">
+          <div class="card-head">
+            <span>Dispatch trace</span>
+            <span class="head-meta"><span class="live-dot" id="live-dot"></span><span id="trace-status">idle</span></span>
+          </div>
+          <div class="card-body"><div id="trace-log" class="log"><div class="placeholder">press Dispatch to start</div></div></div>
+        </div>
 
-      <h3>EVENTS</h3>
-      <div id="events" class="scroll events"><div class="placeholder">presence / channel events appear here</div></div>
-    </section>
+        <div class="card" id="rank-card">
+          <div class="card-head">
+            <span>Ranking</span>
+            <span class="head-meta dim">qualification first · availability gates</span>
+          </div>
+          <div class="card-body">
+            <table id="rank-table" class="rank">
+              <thead>
+                <tr><th>#</th><th>stakeholder</th><th>qual</th><th>avail</th><th>role</th></tr>
+              </thead>
+              <tbody id="rank-body"><tr><td colspan="5" class="placeholder">ranking appears after dispatch</td></tr></tbody>
+            </table>
+            <div id="selected-line" class="selected dim">selected: —</div>
+          </div>
+        </div>
 
-    <section class="page" id="trace">
-      <h2><span class="h-num">02</span> DISPATCH TRACE</h2>
-      <div id="trace-log" class="scroll log"><div class="placeholder">press Dispatch to start</div></div>
-    </section>
+        <div class="card" id="ledger-card">
+          <div class="card-head">
+            <span>Notification ledger</span>
+            <span class="head-meta dim">dedup is physical</span>
+          </div>
+          <div class="card-body"><div id="notifications" class="notifs"><div class="placeholder">—</div></div></div>
+        </div>
 
-    <section class="page" id="rank">
-      <h2><span class="h-num">03</span> RANKING <span class="dim">— qualification first, availability is a gate</span></h2>
-      <table id="rank-table" class="rank">
-        <thead>
-          <tr><th>#</th><th>stakeholder</th><th>qual</th><th>avail</th><th>role</th></tr>
-        </thead>
-        <tbody id="rank-body"><tr><td colspan="5" class="placeholder">ranking appears after dispatch</td></tr></tbody>
-      </table>
-      <div id="selected-line" class="selected dim">selected: —</div>
-    </section>
+        <div class="card" id="decision-card-wrap">
+          <div class="card-head">
+            <span>Decision</span>
+            <span id="plan-state-mini" class="head-meta mono dim">plan: —</span>
+          </div>
+          <div class="card-body">
+            <div id="decision-card" class="dcard"><div class="placeholder">—</div></div>
+            <div id="decision-list" class="dlist"></div>
+          </div>
+        </div>
 
-    <section class="page" id="decision">
-      <h2><span class="h-num">04</span> DECISION</h2>
-      <div id="decision-card" class="dcard"><div class="placeholder">—</div></div>
-      <div id="decision-list" class="scroll dlist"></div>
-    </section>
-
-    <section class="page" id="notifications">
-      <h2><span class="h-num">05</span> NOTIFICATION LEDGER <span class="dim">— dedup is physical</span></h2>
-      <div id="notifications" class="scroll"><div class="placeholder">—</div></div>
-    </section>
-
-    <section class="page" id="incident">
-      <h2><span class="h-num">06</span> INCIDENT TIMELINE</h2>
-      <pre id="timeline" class="timeline"><div class="placeholder">timeline renders after a dispatch</div></pre>
-    </section>
-
-    <section class="page" id="policybar">
-      <h2><span class="h-num">07</span> POLICY MATRIX <span class="dim">— lights up when a rule fires</span></h2>
-      <div id="rules" class="rules">
-        <div class="rule" data-code="R1"><b>R1</b> channel failed → retry</div>
-        <div class="rule" data-code="R2"><b>R2</b> offline, unacked → reroute</div>
-        <div class="rule" data-code="R3"><b>R3</b> offline, acked → escalate</div>
-        <div class="rule" data-code="R4"><b>R4</b> better match → escalate</div>
-        <div class="rule" data-code="R5"><b>R5</b> worse match → no downgrade</div>
-        <div class="rule" data-code="R6"><b>R6</b> exhausted → unresolved</div>
       </div>
-      <div id="verdict-banner" class="banner dim">—</div>
+
+      <div class="console-bottom">
+
+        <div class="card">
+          <div class="card-head"><span>Incident timeline</span></div>
+          <div class="card-body"><pre id="timeline" class="timeline"><div class="placeholder">timeline renders after a dispatch</div></pre></div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <span>Policy</span>
+            <span id="verdict-banner" class="head-meta mono dim">—</span>
+          </div>
+          <div class="card-body">
+            <div id="rules" class="rules">
+              <div class="rule" data-code="R1"><b>R1</b> channel failed → retry</div>
+              <div class="rule" data-code="R2"><b>R2</b> offline, unacked → reroute</div>
+              <div class="rule" data-code="R3"><b>R3</b> offline, acked → escalate</div>
+              <div class="rule" data-code="R4"><b>R4</b> better match → escalate</div>
+              <div class="rule" data-code="R5"><b>R5</b> worse match → no downgrade</div>
+              <div class="rule" data-code="R6"><b>R6</b> exhausted → unresolved</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <span>AI incident summary</span>
+            <span id="ai-badge" class="head-meta dim mono"></span>
+          </div>
+          <div class="card-body">
+            <div id="ai-summary" class="ai-panel"><div class="placeholder">summary renders after a dispatch (Anthropic, deterministic fallback when unavailable)</div></div>
+            <div id="ai-runbook" class="runbook-note"></div>
+          </div>
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- ============ POLICY ============ -->
+    <section class="page" id="policy">
+      <h2><span class="h-num">POLICY</span> matrix — lights up when a rule fires</h2>
+
+      <div class="card">
+        <div class="card-head">
+          <span>Rule matrix</span>
+          <span id="verdict-banner-policy" class="head-meta mono dim">—</span>
+        </div>
+        <div class="card-body">
+          <div id="rules-policy" class="rules">
+            <div class="rule" data-code="R1"><b>R1</b> channel failed → retry</div>
+            <div class="rule" data-code="R2"><b>R2</b> offline, unacked → reroute</div>
+            <div class="rule" data-code="R3"><b>R3</b> offline, acked → escalate</div>
+            <div class="rule" data-code="R4"><b>R4</b> better match → escalate</div>
+            <div class="rule" data-code="R5"><b>R5</b> worse match → no downgrade</div>
+            <div class="rule" data-code="R6"><b>R6</b> exhausted → unresolved</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><span>Decision log</span></div>
+        <div class="card-body"><div id="decision-list-policy" class="dlist"></div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <span>AI incident summary</span>
+          <span id="ai-badge-policy" class="head-meta dim mono"></span>
+        </div>
+        <div class="card-body">
+          <div id="ai-summary-policy" class="ai-panel"><div class="placeholder">summary renders after a dispatch</div></div>
+          <div id="ai-runbook-policy" class="runbook-note"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ REGISTRY ============ -->
+    <section class="page" id="registry">
+      <h2><span class="h-num">REGISTRY</span> stakeholder roster, channels &amp; on-call calendar</h2>
+
+      <div class="roster-strip">
+        <div>
+          <h3>ON-CALL TODAY <span id="roster-day" class="dim"></span></h3>
+          <div id="oncall-chips" class="sch"><div class="placeholder">loading…</div></div>
+          <div id="roster-mode" class="dim roster-note"></div>
+        </div>
+        <div>
+          <button id="roster-open" class="ghost">on-call shifts</button>
+        </div>
+      </div>
+
+      <div id="roster-panel" class="panel hidden">
+        <h3>ON-CALL SHIFTS <span class="dim">— date range, primary + backups</span></h3>
+        <form id="shift-form" class="shift-form" autocomplete="off">
+          <input id="shift-id" type="hidden">
+          <label>start <input id="shift-start" type="date" required></label>
+          <label>end <input id="shift-end" type="date" required></label>
+          <label>primary <select id="shift-primary" required></select></label>
+          <label>backups (multi) <select id="shift-backups" multiple></select></label>
+          <button id="shift-save" class="primary" type="submit">save shift</button>
+          <button id="shift-cancel" class="ghost" type="button">cancel</button>
+        </form>
+        <div id="shift-list" class="shift-list"><div class="placeholder">no shifts yet</div></div>
+      </div>
+
+      <div class="reg-toolbar">
+        <h3>STAKEHOLDERS</h3>
+        <button id="stak-add" class="primary">+ add stakeholder</button>
+      </div>
+
+      <div id="registry-body" class="registry"><div class="placeholder">loading…</div></div>
+
+      <div id="stak-editor" class="panel hidden">
+        <h3 id="editor-title">ADD STAKEHOLDER</h3>
+        <form id="stak-form" class="stak-form" autocomplete="off">
+          <input id="ed-id" type="hidden">
+          <div class="row">
+            <label>name <input id="ed-name" required></label>
+            <label>title <input id="ed-title"></label>
+            <label>seniority <input id="ed-seniority" type="number" min="1" max="5" value="3"></label>
+            <label class="check"><input id="ed-oncall" type="checkbox"> on-call</label>
+          </div>
+          <label>expertise — domain=1..5, comma separated
+            <input id="ed-expertise" placeholder="inventory=5, logistics=3"></label>
+          <div id="ed-channels"></div>
+          <div class="row">
+            <button id="ch-add" class="ghost" type="button">+ channel</button>
+          </div>
+          <div class="row actions">
+            <button id="stak-save" class="primary" type="submit">save</button>
+            <button id="stak-cancel" class="ghost" type="button">cancel</button>
+          </div>
+        </form>
+        <div id="edit-status" class="dim"></div>
+      </div>
+
+      <div id="reg-status" class="reg-status"></div>
     </section>
 
   </main>
 
-</div>
-
-<div id="registry-modal" class="modal hidden">
-  <div class="modal-inner">
-    <div class="modal-head">
-      <h2>STAKEHOLDER REGISTRY</h2>
-      <button id="registry-close" class="ghost">✕ close</button>
-    </div>
-    <div id="registry-body" class="scroll"><div class="placeholder">loading…</div></div>
-  </div>
 </div>
 
 <script src="app.js"></script>

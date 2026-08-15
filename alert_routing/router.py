@@ -12,6 +12,7 @@ A dispatch lifecycle:
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from typing import Optional
 
 from .channels import BaseAdapter, adapter_for
@@ -88,8 +89,14 @@ class Router:
         clock: Optional[Clock] = None,
         presence: Optional[Presence] = None,
         prose: Optional[callable] = None,
+        on_call_overrides: Optional[dict[str, bool]] = None,
     ) -> None:
         self.stakeholders: dict[str, Stakeholder] = load_registry(registry_path)
+        if on_call_overrides:
+            for sid, on in on_call_overrides.items():
+                st = self.stakeholders.get(sid)
+                if st and st.on_call != on:
+                    self.stakeholders[sid] = replace(st, on_call=bool(on))
         self.ledger = Ledger(ledger_path)
         self.config = config or Config()
         self.clock = clock or SystemClock()
