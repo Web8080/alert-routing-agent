@@ -1,0 +1,42 @@
+{
+  "name": "all_inventory_candidates_offline",
+  "description": "All candidates for inventory domain go offline simultaneously, forcing fallback behavior",
+  "alert": {
+    "metric": "stock_level",
+    "value": 5,
+    "threshold": 20,
+    "severity": "CRITICAL",
+    "domain": "inventory",
+    "context": {
+      "warehouse": "WH-1",
+      "sku": "WIDGET-42"
+    }
+  },
+  "presence": {
+    "online": {
+      "STK-001": false,
+      "STK-002": false,
+      "STK-003": false,
+      "STK-004": false,
+      "STK-005": false,
+      "STK-006": false,
+      "STK-007": false
+    }
+  },
+  "steps": [
+    {
+      "op": "ack_timeout"
+    },
+    {
+      "op": "set_online",
+      "sid": "STK-001",
+      "online": true
+    },
+    {
+      "op": "retry_advance"
+    },
+    {
+      "op": "ack"
+    }
+  ]
+}

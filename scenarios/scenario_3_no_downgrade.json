@@ -1,0 +1,19 @@
+{
+  "name": "scenario_3_no_downgrade",
+  "description": "Elena Ross (seniority 5 — the most senior stakeholder) becomes available mid-flight, but her inventory qualification (3.20) is far below Sarah's (6.50). The system must NOT downgrade to a less-qualified stakeholder just because they are online: R5 IGNOREs the candidate, Sarah stays primary.",
+  "alert": {
+    "metric": "stock_level",
+    "value": 9,
+    "threshold": 20,
+    "severity": "CRITICAL",
+    "domain": "inventory",
+    "context": {"warehouse": "WH-2", "sku": "ACME-77"}
+  },
+  "presence": {
+    "online": {"STK-003": false, "STK-006": false, "STK-007": false}
+  },
+  "steps": [
+    {"op": "set_online", "sid": "STK-003", "online": true},
+    {"op": "ack"}
+  ]
+}

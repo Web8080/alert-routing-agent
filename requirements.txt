@@ -1,0 +1,10 @@
+# Core has ZERO third-party dependencies (stdlib only) — install not required.
+#
+# Optional extras (NOT needed for the demo or tests):
+#   pip install -r requirements.txt
+#
+# - fastapi + uvicorn : the optional HTTP API in alert_routing/server.py
+# - pytest           : alternative test runner (stdlib `unittest` also works)
+fastapi>=0.104
+uvicorn>=0.24
+pytest>=7

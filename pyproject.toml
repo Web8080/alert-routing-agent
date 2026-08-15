@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "alert-routing-agent"
+version = "1.0.0"
+description = "Deterministic, event-driven alert routing agent — decides who to notify when a metric breaches a threshold, and re-plans mid-dispatch."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Victor Ibhafidon" }]
+keywords = ["alerting", "on-call", "routing", "incident", "dispatch"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+    "Topic :: System :: Monitoring",
+]
+dependencies = []
+
+[project.optional-dependencies]
+api = ["fastapi>=0.104", "uvicorn>=0.24"]
+dev = ["pytest>=7"]
+
+[project.scripts]
+alert-routing = "alert_routing.cli:main"
+
+[tool.setuptools]
+packages = ["alert_routing"]

@@ -1,0 +1,19 @@
+{
+  "name": "scenario_2_channel_fail_fallback",
+  "description": "Sarah (still the correct, qualified recipient) has Slack fail mid-flight. Channel failure is a transport problem, not a recipient problem: the system retries the same recipient on her next preferred channel (email) instead of re-routing to someone less qualified.",
+  "alert": {
+    "metric": "stock_level",
+    "value": 11,
+    "threshold": 20,
+    "severity": "MEDIUM",
+    "domain": "inventory",
+    "context": {"warehouse": "WH-9", "sku": "ACME-204"}
+  },
+  "presence": {
+    "online": {"STK-003": false, "STK-006": false, "STK-007": false}
+  },
+  "steps": [
+    {"op": "set_channel_health", "sid": "STK-001", "channel": "slack", "state": "DOWN"},
+    {"op": "ack"}
+  ]
+}

@@ -1,0 +1,91 @@
+{
+  "stakeholders": [
+    {
+      "id": "STK-001",
+      "name": "Sarah Chen",
+      "title": "Inventory Lead",
+      "seniority": 3,
+      "expertise": {"inventory": 5, "supply_chain": 3},
+      "on_call": true,
+      "channels": [
+        {"name": "slack", "priority": 1, "endpoint": "sarah.slack"},
+        {"name": "email", "priority": 2, "endpoint": "sarah@acme.dev"},
+        {"name": "sms", "priority": 3, "endpoint": "+1555-000-0001"}
+      ]
+    },
+    {
+      "id": "STK-002",
+      "name": "David Miller",
+      "title": "Senior Operations",
+      "seniority": 4,
+      "expertise": {"inventory": 4, "logistics": 4},
+      "on_call": true,
+      "channels": [
+        {"name": "email", "priority": 1, "endpoint": "david@acme.dev"},
+        {"name": "slack", "priority": 2, "endpoint": "david.slack"}
+      ]
+    },
+    {
+      "id": "STK-003",
+      "name": "Elena Ross",
+      "title": "Platform Lead",
+      "seniority": 5,
+      "expertise": {"sla_contracts": 5, "platform": 5, "inventory": 2},
+      "on_call": false,
+      "channels": [
+        {"name": "email", "priority": 1, "endpoint": "elena@acme.dev"},
+        {"name": "slack", "priority": 2, "endpoint": "elena.slack"},
+        {"name": "sms", "priority": 3, "endpoint": "+1555-000-0003"}
+      ]
+    },
+    {
+      "id": "STK-004",
+      "name": "Frank Dubois",
+      "title": "Logistics Lead",
+      "seniority": 3,
+      "expertise": {"logistics": 5, "inventory": 3},
+      "on_call": true,
+      "channels": [
+        {"name": "email", "priority": 1, "endpoint": "frank@acme.dev"},
+        {"name": "sms", "priority": 2, "endpoint": "+1555-000-0004"}
+      ]
+    },
+    {
+      "id": "STK-005",
+      "name": "Grace Lin",
+      "title": "Supply Chain IC",
+      "seniority": 1,
+      "expertise": {"supply_chain": 5},
+      "on_call": true,
+      "channels": [
+        {"name": "sms", "priority": 1, "endpoint": "+1555-000-0005"},
+        {"name": "email", "priority": 2, "endpoint": "grace@acme.dev"}
+      ]
+    },
+    {
+      "id": "STK-006",
+      "name": "Priya Nair",
+      "title": "Inventory Specialist",
+      "seniority": 4,
+      "expertise": {"inventory": 5},
+      "on_call": true,
+      "channels": [
+        {"name": "slack", "priority": 1, "endpoint": "priya.slack"},
+        {"name": "email", "priority": 2, "endpoint": "priya@acme.dev"}
+      ]
+    },
+    {
+      "id": "STK-007",
+      "name": "Maya Khan",
+      "title": "Head of Inventory",
+      "seniority": 5,
+      "expertise": {"inventory": 5},
+      "on_call": true,
+      "channels": [
+        {"name": "slack", "priority": 1, "endpoint": "maya.slack"},
+        {"name": "email", "priority": 2, "endpoint": "maya@acme.dev"},
+        {"name": "sms", "priority": 3, "endpoint": "+1555-000-0007"}
+      ]
+    }
+  ]
+}

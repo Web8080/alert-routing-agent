@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Unit tests
+        run: python -m unittest discover
+
+      - name: Determinism across hash seeds (P5)
+        run: |
+          for seed in 1 42 999; do
+            PYTHONHASHSEED=$seed python3 -m alert_routing.cli scenarios/scenario_1_offline.json 2>/dev/null > /tmp/det_$seed.out
+          done
+          diff /tmp/det_1.out /tmp/det_42.out
+          diff /tmp/det_1.out /tmp/det_999.out
+          echo "DETERMINISTIC across hash seeds"
+
+      - name: All scenarios run clean
+        run: |
+          for s in scenario_1_offline scenario_2_channel_fail scenario_3_no_downgrade; do
+            python3 -m alert_routing.cli scenarios/$s.json >/dev/null 2>&1 \
+              || { echo "FAILED: $s"; exit 1; }
+            echo "ok: $s"
+          done
+
+      - name: Proposed scenario suite stays green
+        run: |
+          if ls scenarios/proposed/*.json >/dev/null 2>&1; then
+            python3 -m unittest discover
+          fi

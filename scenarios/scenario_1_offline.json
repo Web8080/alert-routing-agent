@@ -1,0 +1,19 @@
+{
+  "name": "scenario_1_offline_mid_flight",
+  "description": "Sarah (primary) selected for a critical stock alert; Slack dispatch begins; Sarah goes offline mid-flight; the send is not yet acknowledged; the system aborts and reroutes to the next-ranked backup (David) with full context preserved.",
+  "alert": {
+    "metric": "stock_level",
+    "value": 12,
+    "threshold": 20,
+    "severity": "HIGH",
+    "domain": "inventory",
+    "context": {"warehouse": "WH-4", "sku": "ACME-100", "last_checked_utc": "08:41"}
+  },
+  "presence": {
+    "online": {"STK-003": false, "STK-006": false, "STK-007": false}
+  },
+  "steps": [
+    {"op": "set_online", "sid": "STK-001", "online": false},
+    {"op": "ack"}
+  ]
+}
