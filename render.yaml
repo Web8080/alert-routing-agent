@@ -1,0 +1,20 @@
+# Render blueprint — deploy the zero-dependency dashboard as a web service.
+#
+# Render injects `PORT`; ui.py reads it (local runs keep the 8000 default).
+# No Docker needed: the core is Python stdlib only.
+#
+#   render.yaml
+#   plan: free
+#   Web Service -> New -> Blueprint -> this repo
+
+services:
+  - type: web
+    name: alert-routing-agent
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m alert_routing.ui --host 0.0.0.0
+    healthCheckPath: /
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12

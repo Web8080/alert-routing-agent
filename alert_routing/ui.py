@@ -227,6 +227,17 @@ def _delete_stakeholder(registry_path: str, sid: str) -> None:
     save_registry(registry_path, reg)
 
 
+def _stable_alert_id(alert: dict) -> str:
+    """Deterministic id for a custom alert: SHA-1 of the canonicalized payload.
+
+    Distinct alerts get distinct ids (the demo's two incidents must not look like
+    the same alert), and identical alerts keep the same id across runs (P5).
+    """
+    import hashlib
+    canonical = json.dumps(alert, sort_keys=True).encode("utf-8")
+    return "custom-" + hashlib.sha1(canonical).hexdigest()[:12]
+
+
 def dispatch_scenario(stem: str, registry_path: str, min_reroute_delta: float = 1.5,
                       on_call_overrides: Optional[dict[str, bool]] = None):
     path = _SCENARIOS_DIR / f"{stem}.json"
@@ -234,8 +245,8 @@ def dispatch_scenario(stem: str, registry_path: str, min_reroute_delta: float = 
         raise FileNotFoundError(f"unknown scenario: {stem}")
     data = json.loads(path.read_text())
     return run_scenario_data(
-        data, registry_path, ":memory:", min_reroute_delta=min_reroute_delta,
-        on_call_overrides=on_call_overrides)
+        data, registry_path, ":memory:", alert_id=f"alert-{stem}",
+        min_reroute_delta=min_reroute_delta, on_call_overrides=on_call_overrides)
 
 
 def dispatch_custom(alert: dict, registry_path: str, min_reroute_delta: float = 1.5,
@@ -260,8 +271,8 @@ def dispatch_custom(alert: dict, registry_path: str, min_reroute_delta: float = 
         "duty_manager_ids": duty_manager_ids,
     }
     return run_scenario_data(
-        data, registry_path, ":memory:", min_reroute_delta=min_reroute_delta,
-        on_call_overrides=on_call_overrides)
+        data, registry_path, ":memory:", alert_id=_stable_alert_id(alert),
+        min_reroute_delta=min_reroute_delta, on_call_overrides=on_call_overrides)
 
 
 def _summary_payload(router, alert_id: str) -> dict:
@@ -434,8 +445,10 @@ def build_handler(registry_path: str) -> type[BaseHTTPRequestHandler]:
 
 
 def main(argv: Optional[list[str]] = None) -> None:
+    import os
     parser = argparse.ArgumentParser(description="Zero-dependency web UI")
-    parser.add_argument("--port", type=int, default=8000)
+    # Render injects PORT; local runs default to 8000.
+    parser.add_argument("--port", type=int, default=int(os.environ.get("PORT", "8000")))
     parser.add_argument("--registry", default=str(_REPO_ROOT / "registry.json"))
     parser.add_argument("--host", default="127.0.0.1")
     args = parser.parse_args(argv)
