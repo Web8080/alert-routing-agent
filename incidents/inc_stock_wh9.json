@@ -1,0 +1,13 @@
+{
+  "id": "inc_stock_wh9",
+  "metric": "stock_level",
+  "domain": "inventory",
+  "severity": "MEDIUM",
+  "value": 11,
+  "threshold": 20,
+  "context": {"sku": "ACME-204", "warehouse": "WH-9"},
+  "plan_state": "DELIVERED",
+  "final_recipient": "Sarah Chen",
+  "resolution": "Cycle count flagged a pick-error, not real stock loss; reconciled the ledger and the alert cleared without restock.",
+  "recorded_at": "2026-08-13T09:47:00Z"
+}

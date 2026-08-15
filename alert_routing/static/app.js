@@ -373,6 +373,58 @@ function renderAI(data) {
   });
   const runbook = data.ai_runbook || "";
   els(["ai-runbook", "ai-runbook-policy"]).forEach((el) => { el.textContent = runbook; });
+
+  const triage = data.ai_triage;
+  els(["triage-badge", "triage-badge-policy"]).forEach((el) => {
+    if (!triage) { el.textContent = ""; return; }
+    const mode = triage.mode === "ai" ? "live" : "fallback";
+    const fb = (triage.agents || []).filter((a) => a.fallback).length;
+    const lat = triage.elapsed_ms != null ? " · " + Math.round(triage.elapsed_ms) + "ms" : "";
+    el.textContent = "· " + mode + (fb ? " · " + fb + " fallback" : "") + lat;
+  });
+  const triageHTML = triage ? renderTriageHTML(triage)
+    : '<div class="placeholder">brief renders after a dispatch</div>';
+  els(["ai-triage", "ai-triage-policy"]).forEach((el) => { el.innerHTML = triageHTML; });
+}
+
+function renderTriageHTML(t) {
+  const b = t.triage || {};
+  const safety = t.safety;
+  let html = "";
+  if (t.mode === "ai") {
+    html += '<div class="triage-note">supervised triage · advisory only · deterministic routing unchanged</div>';
+  }
+  const cause = b.likely_cause || "—";
+  const conf = b.confidence != null ? '<span class="conf dim mono">' + Math.round(b.confidence * 100) + "%</span>" : "";
+  html += "<div><b>Cause:</b> " + escapeHtml(cause) + " " + conf + "</div>";
+  html += renderListHTML("First checks", b.first_checks);
+  html += renderListHTML("Remediation", b.remediation_steps);
+  if (b.escalation_criteria) {
+    html += "<div><b>Escalate if:</b> " + escapeHtml(b.escalation_criteria) + "</div>";
+  }
+  if (b.runbook && b.runbook.id) {
+    html += '<div class="runbook-note">' + escapeHtml(b.runbook.id + "\n" + (b.runbook.snippet || "")) + "</div>";
+  }
+  if (Array.isArray(b.similar_incidents) && b.similar_incidents.length) {
+    html += "<div class=\"triage-similar\"><b>Past incidents:</b>";
+    b.similar_incidents.forEach((si) => {
+      html += '<div class="triage-sim-item dim">' + escapeHtml(si.id + " · " +
+        Math.round((si.similarity || 0) * 100) + "% · " + (si.resolution || "")) + "</div>";
+    });
+    html += "</div>";
+  }
+  if (safety && !safety.ok) {
+    html += '<div class="triage-warn">safety gate: AI brief flagged — replaced with deterministic brief</div>';
+  }
+  return html;
+}
+
+function renderListHTML(label, items) {
+  if (!Array.isArray(items) || !items.length) return "";
+  let html = "<div><b>" + label + ":</b><ul class=\"triage-list\">";
+  items.forEach((i) => { html += "<li>" + escapeHtml(i) + "</li>"; });
+  html += "</ul></div>";
+  return html;
 }
 
 function escapeHtml(s) {

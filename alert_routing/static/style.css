@@ -575,6 +575,27 @@ pre.timeline {
 }
 .ai-toggle-label input { accent-color: var(--accent); }
 
+.triage-note {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+.triage-list { margin: 2px 0 6px; padding-left: 18px; }
+.triage-similar { margin-top: 6px; }
+.triage-sim-item { font-size: 11.5px; }
+.triage-warn {
+  margin-top: 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--warn);
+  border-radius: 4px;
+  color: var(--warn);
+  font-size: 11.5px;
+}
+.conf { font-size: 11px; }
+
+
 .registry .stak { padding: 14px 4px; }
 
 /* ---------------- editable registry + roster ---------------- */

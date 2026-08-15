@@ -99,7 +99,7 @@ python3 -m alert_routing.cli scenarios/scenario_2_channel_fail.json
 # 3. More senior stakeholder appears, but lower domain qualification → no downgrade
 python3 -m alert_routing.cli scenarios/scenario_3_no_downgrade.json
 
-# 4. Full test suite (72 tests: unit + scenario + invariant)
+# 4. Full test suite (88 tests: unit + scenario + invariant + agentic-layer)
 python3 -m unittest discover
 ```
 
@@ -208,15 +208,18 @@ alert_routing/
   timeline.py     incident timeline UI
   ai.py           optional Anthropic prose layer (post-decision, env-gated)
   runbooks.py     deterministic runbook scorer + snippet (post-decision)
+  agents.py       agentic layer (§22): triage brief + comms + postmortem, supervisor
+  incidents.py    past-incident KB: similarity retrieval + opt-in recording
   ui.py           zero-dependency web dashboard (stdlib http.server)
   static/         index.html + style.css + app.js + favicon.svg (dark console)
   server.py       optional FastAPI (never imported by core)
 scenarios/        the 3 demo scenario JSONs
 scenarios/proposed/  scenarios adopted by the invariant suite (opt-in)
 runbooks/         runbook corpus (md, keyword-scored)
+incidents/        seeded past-incident KB (retrieval for the triage brief)
 registry.json     stakeholder seed (7 people, overlapping expertise)
 roster.json       on-call shifts (primary + backups per week)
-tests/            unit + scenario + invariant tests (72)
+tests/            unit + scenario + invariant + agentic-layer tests (88)
 ```
 
 ## Design decisions & tradeoffs (short version)
@@ -269,11 +272,23 @@ wired webhook is RETRIABLE → honest fallback, never a faked ACK.
 ```bash
 ALERT_AI_API_KEY=sk-ant-...
 ALERT_AI_MODEL=claude-haiku-4-5
+ALERT_RECORD_INCIDENTS=1   # opt-in: append resolved alerts to incidents/ (KB)
 ```
 Writes the human-friendly notification body and the incident summary
 (`python -m alert_routing.cli scenarios/scenario_1_offline.json --summary`).
 The routing decision is always deterministic; AI output can never change who is
 notified. Unset key or API failure ⇒ deterministic template (fails safe).
+
+**Agentic layer (§22 — triage brief + comms + postmortem):**
+After every dispatch the dashboard runs the three read-only agents over the
+*already-final* decision (two-lane architecture): a **triage brief** grounded in
+runbook retrieval + similar past incidents (`incidents/`), a **comms draft**,
+and a **postmortem draft**. The supervisor enforces a budget and a per-agent
+deterministic fallback, and a **safety gate** re-checks the AI brief so it can
+never name a stakeholder the deterministic kernel did not deliver to. Toggle it
+with the **AI triage brief** switch in the dashboard, or set `ALERT_AI_API_KEY`
+to zero for a fully deterministic demo. Design + evals live in
+[`BLUEPRINT.md`](BLUEPRINT.md) §22.
 
 **Live trigger — metrics feed:**
 ```bash
@@ -307,10 +322,10 @@ availability change). Adopted scenarios land in `scenarios/proposed/`.
 - Chaos tests: kill the process at random ledger points, restart, assert the two
   dedup invariants still hold.
 - Calibrate the seniority weight from real resolution data.
-- Full RAG over runbooks/past incidents for *post-decision* AI analysis
-  (retrieval stays out of the routing path; the routing decision remains
-  deterministic). A zero-dependency slice is already shipped: `runbooks/*.md` +
-  a deterministic scorer feeding the incident summary.
+- Deep retrieval (embeddings) for *post-decision* AI analysis. The zero-dependency
+  RAG slice is already shipped and live in the dashboard: deterministic runbook
+  scoring + `incidents/` similarity feeding the triage brief (§22). The next step
+  is embeddings + a reranker, still strictly post-decision and still read-only.
 
 ### Would an AI chat be wise to add later? (asked in prep)
 

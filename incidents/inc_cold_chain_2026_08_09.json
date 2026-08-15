@@ -1,0 +1,13 @@
+{
+  "id": "inc_cold_chain_2026_08_09",
+  "metric": "cold_chain_temperature",
+  "domain": "cold-chain",
+  "severity": "CRITICAL",
+  "value": 9.4,
+  "threshold": 8,
+  "context": {"zone": "Z-3", "shipment": "SH-441"},
+  "plan_state": "ESCALATED",
+  "final_recipient": "Grace Lin",
+  "resolution": "Chiller Z-3 failed; shipment rerouted to a cold dock and the unit was put on a maintenance ticket. Verified with the cold_chain runbook before closing.",
+  "recorded_at": "2026-08-09T22:15:00Z"
+}

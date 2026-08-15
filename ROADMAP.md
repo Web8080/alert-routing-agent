@@ -71,7 +71,7 @@ Deliverables (from the brief): public GitHub repo under `github/web8080`, a
 | server.py (optional FastAPI) | ✅ Done |
 | scenario JSON files | ✅ Done |
 | registry.json seed | ✅ Done |
-| tests (72 passing) | ✅ Done |
+| tests (88 passing) | ✅ Done |
 | README.md (+ TOC) | ✅ Done |
 | Packaging (pyproject + entry point + Makefile) | ✅ Done |
 | author/date headers on all scripts | ✅ Done (23 files) |
@@ -343,6 +343,38 @@ if FastAPI is absent, `build_app()` returns None (module still imports cleanly).
 - Registry edits are validated through the existing `parse_stakeholder` /
   `validate_shift` paths, so a corrupt entry fails fast with a named error
   (E19 preserved).
+
+### Phase 9 — Agentic layer: two-lane AI, read-only agents (§22) ✅ DONE
+- [x] **Design first** — BLUEPRINT §22 "AI / Agentic Layer — Design (two-lane
+      architecture)": deterministic routing kernel (Lane 1) + advisory AI (Lane 2)
+      that is *structurally incapable* of routing; do-not-add table; eval plan
+      (retrieval recall@k + safety gate); demo story.
+- [x] **`agents.py`** — three read-only agents run AFTER the final decision:
+      `TriageAgent` (runbook + incident-KB retrieval → strict-JSON brief),
+      `CommsAgent` (status draft), `PostmortemAgent` (incident summary).
+      `supervise()` orchestrates with a time budget, a per-agent deterministic
+      fallback, and an audit trail (`agents: [{name, ok, latency_ms, fallback}]`).
+- [x] **Honesty invariant** — `mode` and the audit trail always reflect the
+      brief's *real* source: `_parse_brief` raises on malformed JSON so a
+      parse failure records a true fallback (never "AI live" with fallback
+      content); tolerant JSON extraction (`{...}`) + 800-token budget keep live
+      responses parseable.
+- [x] **Safety gate** (`safety_check`) — the AI brief may only name stakeholders
+      the kernel DELIVERED/ACKED/ESCALATED to (schema check + `STK-###`/name scan);
+      `_summary_payload` swaps in the deterministic brief when the gate trips.
+- [x] **`incidents.py`** — past-incident KB: deterministic similarity
+      (metric/domain/severity + context-key overlap, normalized), `record_incident`
+      opt-in via `ALERT_RECORD_INCIDENTS=1`. Seeded `incidents/*.json` so retrieval
+      has data on first run.
+- [x] **Dashboard wiring** — `_summary_payload` returns `ai_triage`; Console +
+      Policy cards render the brief (cause + confidence, first checks,
+      remediation, runbook, past incidents, mode badge + audit line).
+- [x] **New tests (88 total)** — `test_agents.py`: KB retrieval order + record
+      round-trip, brief schema, supervisor audit trail + fallback determinism,
+      honesty (valid JSON → ai; garbage/schema-mismatch → fallback), safety-gate
+      defect/clean/missing-keys.
+- [x] **Live-verified** — real Anthropic run returns `mode=ai, source=ai` with
+      runbook + similar incidents; keyless fallback stays fully deterministic.
 
 ---
 

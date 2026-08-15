@@ -57,6 +57,11 @@ class AnthropicProse:
         self.model = settings.ai_model()
         self.api_key = settings.ai_api_key()
 
+    def complete(self, system: str, prompt: str, max_tokens: int = 600) -> str:
+        """Raw completion; the single choke point for all AI calls (agent layer
+        reuses this). Returns trimmed text or raises on any failure."""
+        return self._complete(system, prompt, max_tokens=max_tokens)
+
     def _complete(self, system: str, prompt: str, max_tokens: int = 600) -> str:
         headers = {
             "content-type": "application/json",

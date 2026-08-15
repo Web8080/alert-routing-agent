@@ -24,13 +24,13 @@ packages (already installed in the throwaway venv `/tmp/ar_srv`):
 
 ---
 
-## 1. The full test suite (72 tests)
+## 1. The full test suite (88 tests)
 
 ```bash
 python3 -m unittest discover
 ```
 
-**Expect:** `Ran 72 tests ... OK`. The suite covers:
+**Expect:** `Ran 88 tests ... OK`. The suite covers:
 
 | File | What it proves |
 |---|---|
@@ -44,6 +44,7 @@ python3 -m unittest discover
 | `test_registry_edit.py` | registry CRUD: parse/save round-trip, upsert, on-call toggle, delete |
 | `test_runbooks.py` | deterministic runbook scorer + snippet feeding the incident summary |
 | `test_live_delivery.py` | live SMTP/Slack adapters (env-gated) — honest RETRIABLE fallback, never a faked ACK |
+| `test_agents.py` | **§22** — incident-KB retrieval order + record round-trip; triage brief schema; supervisor audit trail + fallback determinism; **honesty**: mode/audit must reflect the brief's real source, never a silent AI; safety gate flags any stakeholder the kernel did not deliver to |
 
 ---
 

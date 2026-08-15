@@ -1,0 +1,13 @@
+{
+  "id": "inc_stock_wh4",
+  "metric": "stock_level",
+  "domain": "inventory",
+  "severity": "HIGH",
+  "value": 12,
+  "threshold": 20,
+  "context": {"sku": "ACME-100", "warehouse": "WH-4"},
+  "plan_state": "DELIVERED",
+  "final_recipient": "David Miller",
+  "resolution": "Confirmed stock loss at WH-4; expedited a transfer from WH-2 and re-ran the stock_level check to confirm recovery.",
+  "recorded_at": "2026-08-12T03:12:00Z"
+}

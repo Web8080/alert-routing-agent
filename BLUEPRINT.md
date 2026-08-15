@@ -1320,7 +1320,131 @@ README/TESTING/ROADMAP have been brought in line with this as-built state.
 
 ---
 
-*End of blueprint. This document is the contract for implementation: a build that satisfies Sections 2, 5–9, and 13 is the deliverable; anything else is scope creep. §21 records the shipped additions without editing the contract.*
+## 22. AI / Agentic Layer — Design (two-lane architecture)
+
+*Added 2026-08-15 as the senior-engineer design for "cracking the hard part
+with AI". This section specifies what we add and — equally important — what we
+deliberately never add. It is a design contract, not a promise to ship
+everything before the demo.*
+
+### 22.1 The argument (why the hard part *must* stay deterministic)
+
+The brief's hard constraints — no lost context, no duplicate notification, no
+double-query of availability, no downgrade to a less-qualified recipient — are
+**correctness properties**. A probabilistic model cannot prove any of them. The
+2026 AIOps/agentic-SRE market has converged on the same conclusion: AI runs
+*triage, summary, and comms*; the **who-to-page decision stays deterministic
+policy** (PagerDuty: "our agents know when they don't have enough data — they
+escalate to a human rather than guess"; Cordum's two-lane design; Google SRE's
+shipped agents do consolidation/handoffs/postmortems, not dispatch). The Replit
+incident is the cautionary tale: constraint adherence degrades under complexity,
+and irreversible actions outrun human supervision.
+
+**Consequence:** our router (Sections 5–9) is already the right answer. The AI
+layer must be **structurally incapable of routing** — no tool can choose a
+recipient, change a channel, or trigger an escalation. Safety is architectural,
+not behavioral: *the AI has no lever to hurt the guarantees.*
+
+### 22.2 Two-lane architecture
+
+```
+Lane 1 (deterministic kernel — unchanged)          Lane 2 (agentic AI — read-only, post-decision)
+alert ─▶ RANKER ─▶ SNAPSHOTTER ─▶ PLANNER ─▶       alert + ledger + trace + runbooks + past incidents
+         DISPATCHER ─▶ CHANGE DETECTOR ─▶            ─▶ SUPERVISOR
+         DECISION POLICY R1–R6 ─▶ timeline            ├─ triage agent   (RAG brief: cause/checks/steps/escalation)
+         (R1–R6, dedup, single-eval: provable)        ├─ comms agent    (status/handoff drafts)
+                                                      └─ postmortem agent (structured draft)
+                                                      ─▶ structured JSON brief → dashboard
+```
+
+- Lane 2 runs **after** the terminal decision, on the same event data the
+  kernel already recorded. Its output is advisory; it never feeds back into
+  Lane 1.
+- Every agent has a **deterministic fallback** and a **token/time budget**, so
+  the demo and tests run identically with AI off (P5 untouched).
+- The only optional dependency is the existing Anthropic call (stdlib
+  `urllib`); no framework (LangGraph/CrewAI/AutoGen) — a 60-line supervisor
+  loop with structured-JSON handoffs proves the same architecture with zero
+  dependency cost and lower latency.
+
+### 22.3 The triage-brief agent (the slice we build)
+
+Inputs: the alert, the decision log + notification ledger for this alert, the
+deterministic runbook retrieval (Section: `runbooks.py`), and the past-incident
+KB (`incidents/*.json`). Output: a **schema-valid JSON brief**:
+
+```json
+{
+  "likely_cause": "…",            "confidence": "low|medium|high",
+  "first_checks": ["…", "…"],     "remediation_steps": ["…", "…"],
+  "escalation_criteria": "…",
+  "runbook": {"id": "inventory_stock_level", "snippet": "…"},
+  "similar_incidents": [{"id": "…", "metric": "…", "resolution": "…", "similarity": 0.87}]
+}
+```
+
+Contract:
+- **Post-decision only.** It explains and advises; it can never alter routing.
+- **Grounded.** Every claim must cite the runbook or a past incident; the LLM
+  is instructed to answer "insufficient evidence" rather than invent (the
+  PagerDuty "know when you don't have enough data" principle).
+- **Schema-valid or fallback.** If the LLM returns invalid JSON, missing keys,
+  or times out, the supervisor substitutes the deterministic brief. The shape
+  is what the UI renders — a malformed shape is a failed agent, not a crash.
+- **Prompt hygiene.** Raw alert `context` is untrusted input (prompt-injection
+  hardening, same as Section for ai.py); the brief's fields are validated
+  against the kernel's own records.
+
+### 22.4 Supervisor orchestration (thin stub)
+
+A stdlib supervisor runs the three specialist agents as a bounded pipeline:
+
+1. **triage** — retrieves runbook + similar incidents (deterministic, cheap),
+   then drafts the brief.
+2. **comms** — drafts the status/notification prose from the brief + decision
+   log (deterministic fallback: existing `fallback_notification_body`).
+3. **postmortem** — drafts a structured post-incident summary from the ledger
+   (deterministic fallback: `fallback_incident_summary`).
+
+Guards: per-agent **max_tokens**, a **wall-clock timeout**, and a **per-agent
+fallback** so one failing agent cannot fail the pipeline. The supervisor
+returns `{"mode": "ai"|"fallback", "agents": [{"name", "ok", "latency_ms"}],
+"triage": {...}, "comms": "...", "postmortem": "..."}` and records its own
+trace (agent names, ok/fail, latency) — an agent audit trail for the demo.
+
+### 22.5 What we deliberately DO NOT add
+
+| Don't | Why |
+|---|---|
+| LLM in the routing/decision path | destroys P1–P5 and the whole defense; the interview question is precisely "why didn't AI pick the recipient" |
+| Autonomous remediation / write actions | OWASP A2 (excessive agency); write-path must be approval-gated, out of demo scope |
+| Multi-agent frameworks (LangGraph/CrewAI) | dependency + latency + cost; a stdlib supervisor proves the same design |
+| Fine-tuning | RAG adapts without it; costs, staleness, no demo value |
+| AI "personality"/agents on the paging path | Replit failure mode |
+| AI chat with write access | stays a read-only explainer (README "would an AI chat be wise") |
+
+### 22.6 Evals (make it stand out)
+
+Two judges, both deterministic and runnable in the demo:
+
+1. **Retrieval quality** — recall@k of runbook/incident retrieval against
+   labeled test cases (no LLM; ~1s). "RAG works" is measured, not claimed.
+2. **Safety check** — cross-validate the AI brief against the decision log:
+   if the brief ever recommends paging someone the deterministic router
+   rejected for this alert, the supervisor flags it as a **defect** (logged,
+   never silently accepted). The safety property is asserted, not assumed.
+
+### 22.7 Demo story
+
+Same alert, two runs: run one without AI → deterministic trace; run two with
+AI → the *same* trace plus a triage brief (likely cause, first checks, runbook,
+similar incidents) and a supervisor audit trail. The closing line: **"the AI
+reasoned over our runbooks and history and made the on-call engineer faster —
+and it could not have changed who was paged."**
+
+---
+
+*End of blueprint. This document is the contract for implementation: a build that satisfies Sections 2, 5–9, and 13 is the deliverable; anything else is scope creep. §21 records the shipped additions without editing the contract; §22 specifies the AI/agentic layer's design contract (post-decision, read-only, provable).*
 
 
 

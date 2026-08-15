@@ -275,26 +275,59 @@ def dispatch_custom(alert: dict, registry_path: str, min_reroute_delta: float = 
         min_reroute_delta=min_reroute_delta, on_call_overrides=on_call_overrides)
 
 
-def _summary_payload(router, alert_id: str) -> dict:
-    """AI incident summary (Anthropic) with a deterministic fallback."""
+def _summary_payload(router, alert_id: str, registry_path: str = "") -> dict:
+    """AI incident summary (Anthropic) with a deterministic fallback.
+
+    Also runs the post-decision agentic layer (§22): triage brief over runbooks
+    + past incidents, comms draft, postmortem draft — all advisory, all with
+    deterministic fallbacks. A safety gate verifies the AI brief never names a
+    stakeholder the kernel did not deliver to.
+    """
     from . import settings
     from .ai import fallback_incident_summary, prose_or_fallback
+    from .agents import fallback_triage_brief, safety_check, supervise
+    from .incidents import load_incidents, record_incident, similar_incidents
+    from .registry import load_registry
     from .runbooks import runbook_snippet
 
     state = router.ledger.plan_state(alert_id)
-    final_sid = next((n["stakeholder_id"]
-                      for n in router.ledger.notifications_for(alert_id)
+    decisions = router.ledger.decision_log(alert_id)
+    notifications = router.ledger.notifications_for(alert_id)
+    final_sid = next((n["stakeholder_id"] for n in notifications
                       if n["status"] in ("DELIVERED", "ACKED", "ESCALATED")),
                      None)
+    if final_sid is None and notifications:
+        final_sid = notifications[0]["stakeholder_id"]
     trace = [f"{t.ts} {t.kind} {t.text}" for t in router.trace]
     runbook = runbook_snippet(router.alert)
+    similar = similar_incidents(router.alert, load_incidents())
+
     summary = prose_or_fallback(
         "summary", router.alert, state, final_sid, trace, runbook,
         fallback=lambda: fallback_incident_summary(router.alert, state, final_sid))
+
+    supervision = supervise(
+        router.alert, decisions, notifications, state, final_sid, trace,
+        runbook, similar)
+    if supervision["mode"] == "ai":
+        try:
+            registry = load_registry(registry_path) if registry_path else {}
+            check = safety_check(supervision["triage"], notifications, registry)
+        except Exception:
+            check = {"ok": True, "issues": []}
+        if not check["ok"]:
+            supervision["triage"] = fallback_triage_brief(
+                router.alert, decisions, notifications, runbook, similar)
+            supervision["safety"] = check
+
+    if settings.get_bool("ALERT_RECORD_INCIDENTS"):
+        record_incident(router.alert, state, final_sid)
+
     return {
         "ai_summary": summary,
         "ai_runbook": runbook,
         "ai_enabled": settings.ai_enabled(),
+        "ai_triage": supervision,
     }
 
 
@@ -388,7 +421,7 @@ def build_handler(registry_path: str) -> type[BaseHTTPRequestHandler]:
                         payload = _result_payload(router, alert_id)
                         payload["scenario"] = stem
                         if body.get("summary"):
-                            payload.update(_summary_payload(router, alert_id))
+                            payload.update(_summary_payload(router, alert_id, registry_path))
                         self._send_json(payload)
                         return
 
