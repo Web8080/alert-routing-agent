@@ -424,24 +424,25 @@ $("registry-modal").addEventListener("click", (e) => {
   if (e.target === e.currentTarget) e.currentTarget.classList.add("hidden");
 });
 
-const MENU_IDS = ["ingress", "trace", "rank", "decision", "notifications", "incident", "about"];
-function menuLink(id) {
-  return document.querySelector(`.menubar a[href="#${id}"]`);
-}
-function scrollSpy() {
-  const probe = 120;
-  let current = MENU_IDS[0];
-  for (const id of MENU_IDS) {
-    const el = document.getElementById(id);
-    if (!el) continue;
-    if (el.getBoundingClientRect().top <= probe) current = id;
+const PAGES = ["ingress", "trace", "rank", "decision", "notifications", "incident", "policybar"];
+function switchPage(name) {
+  if (!PAGES.includes(name)) return;
+  for (const id of PAGES) {
+    const page = document.getElementById(id);
+    if (page) page.classList.toggle("active", id === name);
   }
-  for (const id of MENU_IDS) {
-    const link = menuLink(id);
-    if (link) link.classList.toggle("active", id === current);
+  for (const link of document.querySelectorAll("#side-nav a")) {
+    link.classList.toggle("active", link.dataset.page === name);
   }
+  const head = document.querySelector(".page.active h2");
+  if (head) document.title = "Alert Routing — " + head.textContent.replace(/\s+/g, " ").trim();
 }
-document.addEventListener("scroll", scrollSpy, { passive: true });
-scrollSpy();
+document.querySelectorAll("#side-nav a").forEach((link) => {
+  link.addEventListener("click", (e) => {
+    e.preventDefault();
+    switchPage(link.dataset.page);
+  });
+});
+switchPage("ingress");
 
 loadScenarios();

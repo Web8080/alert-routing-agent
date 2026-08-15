@@ -3,67 +3,68 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Alert Routing Agent — Victor Ibhafidon</title>
+<title>Alert Routing — Operations Console</title>
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<header class="topbar">
+<aside class="sidebar">
   <div class="brand">
     <span class="logo">◉</span>
-    <h1>ALERT&nbsp;ROUTING&nbsp;AGENT</h1>
-    <span class="sub">deterministic · event-driven · no-downgrade</span>
+    <div class="brand-text">
+      <h1>ALERT ROUTING</h1>
+      <span class="sub">deterministic on-call dispatch</span>
+    </div>
   </div>
-  <div class="meta">
-    <button id="registry-btn" class="ghost">☰ registry</button>
+
+  <nav class="side-nav" id="side-nav">
+    <a data-page="ingress" class="active">Alert</a>
+    <a data-page="trace">Trace</a>
+    <a data-page="rank">Ranking</a>
+    <a data-page="decision">Decision</a>
+    <a data-page="notifications">Ledger</a>
+    <a data-page="incident">Timeline</a>
+    <a data-page="policybar">Policy</a>
+  </nav>
+
+  <div class="side-foot">
     <span id="plan-state" class="pill dim">plan: —</span>
-    <span class="pill dim">author: Victor Ibhafidon</span>
-    <span class="pill dim">date: 2026-08-14</span>
+    <button id="registry-btn" class="ghost">Registry</button>
   </div>
-</header>
+</aside>
 
-<nav class="menubar" id="menubar">
-  <a href="#ingress">01 · ingress</a>
-  <a href="#trace">02 · trace</a>
-  <a href="#rank">03 · ranking</a>
-  <a href="#decision">04 · decision</a>
-  <a href="#notifications">05 · ledger</a>
-  <a href="#incident">06 · timeline</a>
-  <a href="#policybar">07 · policy</a>
-  <span class="menubar-spacer"></span>
-  <a href="#about" class="menubar-link dim">about / scale-out</a>
-</nav>
+<div class="shell">
 
-<section class="controls">
-  <label for="scenario">scenario</label>
-  <select id="scenario" disabled>
-    <option value="">loading…</option>
-  </select>
-  <button id="dispatch" disabled class="primary">▶ DISPATCH</button>
-  <div class="spacer"></div>
-  <button id="play" disabled>⏸ pause</button>
-  <button id="step" disabled>step ›</button>
-  <label for="speed" class="speed-label">speed</label>
-  <input type="range" id="speed" min="1" max="20" value="8">
-  <button id="replay" class="ghost" disabled>↺ replay</button>
-</section>
+  <section class="controls">
+    <label for="scenario">scenario</label>
+    <select id="scenario" disabled>
+      <option value="">loading…</option>
+    </select>
+    <button id="dispatch" disabled class="primary">Dispatch</button>
+    <div class="spacer"></div>
+    <button id="play" disabled>Pause</button>
+    <button id="step" disabled>Step</button>
+    <label for="speed" class="speed-label">speed</label>
+    <input type="range" id="speed" min="1" max="20" value="8">
+    <button id="replay" class="ghost" disabled>Replay</button>
+  </section>
 
-<main class="grid">
+  <main class="pages">
 
-  <section class="panel" id="ingress">
-    <h2><span class="h-num">01</span> ALERT — ingress payload</h2>
-    <dl class="kv" id="alert-kv">
-      <dt>alert_id</dt><dd id="a-id">—</dd>
-      <dt>metric</dt><dd id="a-metric">—</dd>
-      <dt>value / threshold</dt><dd id="a-value">—</dd>
-      <dt>severity</dt><dd id="a-severity">—</dd>
-      <dt>domain</dt><dd id="a-domain">—</dd>
-      <dt>context</dt><dd id="a-context">—</dd>
-    </dl>
-    <details>
-      <summary>custom alert (JSON)</summary>
-      <textarea id="custom-alert" spellcheck="false">{
+    <section class="page" id="ingress">
+      <h2><span class="h-num">01</span> ALERT</h2>
+      <dl class="kv" id="alert-kv">
+        <dt>alert_id</dt><dd id="a-id">—</dd>
+        <dt>metric</dt><dd id="a-metric">—</dd>
+        <dt>value / threshold</dt><dd id="a-value">—</dd>
+        <dt>severity</dt><dd id="a-severity">—</dd>
+        <dt>domain</dt><dd id="a-domain">—</dd>
+        <dt>context</dt><dd id="a-context">—</dd>
+      </dl>
+      <details>
+        <summary>custom alert</summary>
+        <textarea id="custom-alert" spellcheck="false">{
   "metric": "stock_level",
   "value": 12,
   "threshold": 20,
@@ -71,97 +72,77 @@
   "domain": "inventory",
   "context": {"warehouse": "WH-4", "sku": "ACME-100"}
 }</textarea>
-      <button id="dispatch-custom" class="ghost">send custom</button>
-    </details>
+        <button id="dispatch-custom" class="ghost">send</button>
+      </details>
 
-    <h3>DISPATCH STATE</h3>
-    <ol id="state-machine" class="sm">
-      <li data-stage="received"><span class="dot"></span>ALERT RECEIVED</li>
-      <li data-stage="ranked"><span class="dot"></span>STAKEHOLDERS RANKED</li>
-      <li data-stage="planned"><span class="dot"></span>ROUTE PLANNED</li>
-      <li data-stage="dispatching"><span class="dot"></span>DISPATCHING</li>
-      <li data-stage="event"><span class="dot"></span>CHANGE DETECTED</li>
-      <li data-stage="decision"><span class="dot"></span>POLICY DECISION</li>
-      <li data-stage="result"><span class="dot"></span>RESULT</li>
-    </ol>
+      <h3>STATE</h3>
+      <ol id="state-machine" class="sm">
+        <li data-stage="received"><span class="dot"></span>RECEIVED</li>
+        <li data-stage="ranked"><span class="dot"></span>RANKED</li>
+        <li data-stage="planned"><span class="dot"></span>PLANNED</li>
+        <li data-stage="dispatching"><span class="dot"></span>DISPATCHING</li>
+        <li data-stage="event"><span class="dot"></span>EVENT</li>
+        <li data-stage="decision"><span class="dot"></span>DECISION</li>
+        <li data-stage="result"><span class="dot"></span>RESULT</li>
+      </ol>
 
-    <h3>EVENT STREAM</h3>
-    <div id="events" class="scroll events"><div class="placeholder">presence / channel events appear here</div></div>
-  </section>
+      <h3>EVENTS</h3>
+      <div id="events" class="scroll events"><div class="placeholder">presence / channel events appear here</div></div>
+    </section>
 
-  <section class="panel" id="trace">
-    <h2><span class="h-num">02</span> DISPATCH TRACE</h2>
-    <div id="trace-log" class="scroll log"><div class="placeholder">press DISPATCH</div></div>
-  </section>
+    <section class="page" id="trace">
+      <h2><span class="h-num">02</span> DISPATCH TRACE</h2>
+      <div id="trace-log" class="scroll log"><div class="placeholder">press Dispatch to start</div></div>
+    </section>
 
-  <section class="panel" id="rank">
-    <h2><span class="h-num">03</span> STAKEHOLDER RANKING <span class="dim">— qualification first, availability is a gate</span></h2>
-    <table id="rank-table" class="rank">
-      <thead>
-        <tr><th>#</th><th>stakeholder</th><th>qual</th><th>avail</th><th>role</th></tr>
-      </thead>
-      <tbody id="rank-body"><tr><td colspan="5" class="placeholder">ranking appears after dispatch</td></tr></tbody>
-    </table>
-    <div id="selected-line" class="selected dim">selected: —</div>
-  </section>
+    <section class="page" id="rank">
+      <h2><span class="h-num">03</span> RANKING <span class="dim">— qualification first, availability is a gate</span></h2>
+      <table id="rank-table" class="rank">
+        <thead>
+          <tr><th>#</th><th>stakeholder</th><th>qual</th><th>avail</th><th>role</th></tr>
+        </thead>
+        <tbody id="rank-body"><tr><td colspan="5" class="placeholder">ranking appears after dispatch</td></tr></tbody>
+      </table>
+      <div id="selected-line" class="selected dim">selected: —</div>
+    </section>
 
-  <section class="panel" id="decision">
-    <h2><span class="h-num">04</span> DECISION — why this, now</h2>
-    <div id="decision-card" class="dcard"><div class="placeholder">—</div></div>
-    <div id="decision-list" class="scroll dlist"></div>
-  </section>
+    <section class="page" id="decision">
+      <h2><span class="h-num">04</span> DECISION</h2>
+      <div id="decision-card" class="dcard"><div class="placeholder">—</div></div>
+      <div id="decision-list" class="scroll dlist"></div>
+    </section>
 
-  <section class="panel" id="notifications">
-    <h2><span class="h-num">05</span> NOTIFICATION LEDGER <span class="dim">— dedup is physical</span></h2>
-    <div id="notifications" class="scroll"><div class="placeholder">—</div></div>
-  </section>
+    <section class="page" id="notifications">
+      <h2><span class="h-num">05</span> NOTIFICATION LEDGER <span class="dim">— dedup is physical</span></h2>
+      <div id="notifications" class="scroll"><div class="placeholder">—</div></div>
+    </section>
 
-  <section class="panel" id="incident">
-    <h2><span class="h-num">06</span> INCIDENT TIMELINE</h2>
-    <pre id="timeline" class="timeline"><div class="placeholder">timeline renders after a dispatch</div></pre>
-  </section>
+    <section class="page" id="incident">
+      <h2><span class="h-num">06</span> INCIDENT TIMELINE</h2>
+      <pre id="timeline" class="timeline"><div class="placeholder">timeline renders after a dispatch</div></pre>
+    </section>
 
-  <section class="panel" id="about">
-    <h2><span class="h-num">07</span> ABOUT / SCALE-OUT <span class="dim">— what is NOT in the core, and why (deliberate)</span></h2>
-    <div class="about-text">
-      <p>The routing core is deliberately small and provable. These are the
-      documented next steps, each <b>post-decision</b> — they never feed back
-      into who is notified. The routing path stays deterministic.</p>
-      <ul>
-        <li><b>AI chat on the incident</b> — a console assistant that can only
-        explain/query the decision log, ledger, and timeline. Read-only, injected
-        from the entry point (same seam as the "why you" prose). Worth building
-        as the product's interface layer — <i>not</i> as the router.</li>
-        <li><b>Kafka in front</b> — buffering + replay for bursty ingress and
-        per-<code>alert_id</code> ordering (partition key), durable commits so a
-        crashed router can be restarted without dropping or double-sending
-        (dedup is already physical, so replay is safe). Overkill at this scale;
-        the seam it would fill is <code>Presence.subscribe()</code>.</li>
-        <li><b>Runbook RAG</b> — retrieval that enriches the <i>post-incident
-        summary</i>, never the routing decision.</li>
-      </ul>
-    </div>
-  </section>
+    <section class="page" id="policybar">
+      <h2><span class="h-num">07</span> POLICY MATRIX <span class="dim">— lights up when a rule fires</span></h2>
+      <div id="rules" class="rules">
+        <div class="rule" data-code="R1"><b>R1</b> channel failed → retry</div>
+        <div class="rule" data-code="R2"><b>R2</b> offline, unacked → reroute</div>
+        <div class="rule" data-code="R3"><b>R3</b> offline, acked → escalate</div>
+        <div class="rule" data-code="R4"><b>R4</b> better match → escalate</div>
+        <div class="rule" data-code="R5"><b>R5</b> worse match → no downgrade</div>
+        <div class="rule" data-code="R6"><b>R6</b> exhausted → unresolved</div>
+      </div>
+      <div id="verdict-banner" class="banner dim">—</div>
+    </section>
 
-</main>
+  </main>
 
-<section class="policybar">
-  <h2><span class="h-num">07</span> POLICY MATRIX <span class="dim">— lights up when a rule fires</span></h2>
-  <div id="rules" class="rules">
-    <div class="rule" data-code="R1"><b>R1</b> channel failed → retry same recipient</div>
-    <div class="rule" data-code="R2"><b>R2</b> offline, unacked → abort + reroute</div>
-    <div class="rule" data-code="R3"><b>R3</b> offline, acked → complete + escalate</div>
-    <div class="rule" data-code="R4"><b>R4</b> better match (delta) → reroute/escalate</div>
-    <div class="rule" data-code="R5"><b>R5</b> worse match → no downgrade</div>
-    <div class="rule" data-code="R6"><b>R6</b> targets exhausted → unresolved</div>
-  </div>
-  <div id="verdict-banner" class="banner dim">—</div>
-</section>
+</div>
 
 <div id="registry-modal" class="modal hidden">
   <div class="modal-inner">
     <div class="modal-head">
-      <h2>STAKEHOLDER REGISTRY <span class="dim">— read-only view (registry.json)</span></h2>
+      <h2>STAKEHOLDER REGISTRY</h2>
       <button id="registry-close" class="ghost">✕ close</button>
     </div>
     <div id="registry-body" class="scroll"><div class="placeholder">loading…</div></div>

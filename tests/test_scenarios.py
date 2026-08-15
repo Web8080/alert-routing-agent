@@ -3,14 +3,21 @@
 """End-to-end scenario tests: run the 3 demo scenarios, assert terminal state,
 invariants (no duplicate, no downgrade, single-eval) and full context."""
 import unittest
+from unittest import mock
 
+from alert_routing import settings
 from alert_routing.cli import run_scenario
 
 from .helpers import SCENARIOS
 
 
 def _run(name):
-    return run_scenario(str(SCENARIOS / name), str(SCENARIOS.parent / "registry.json"))
+    # Hermetic: a dev `.env` may enable live SMTP/Slack/AI, but the suite must
+    # never touch the network. Force the deterministic stub path.
+    with mock.patch.object(settings, "smtp_enabled", return_value=False), \
+         mock.patch.object(settings, "slack_enabled", return_value=False), \
+         mock.patch.object(settings, "ai_enabled", return_value=False):
+        return run_scenario(str(SCENARIOS / name), str(SCENARIOS.parent / "registry.json"))
 
 
 class TestScenarios(unittest.TestCase):
