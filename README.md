@@ -12,6 +12,8 @@ only (`sqlite3`, `dataclasses`, `json`, `argparse`). The routing core is a
 deterministic policy engine (R1–R6), not an LLM — because the hard requirements
 here are *correctness guarantees*, and determinism is what makes them provable.
 
+![Alert Routing — Operations Console](dashboard.png)
+
 ## The problem
 
 > Build an agent that monitors operational metrics, plans a dispatch route to the
