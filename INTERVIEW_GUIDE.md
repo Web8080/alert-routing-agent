@@ -287,11 +287,15 @@ seniority-5 Elena (q 3.20) is refused over Sarah (q 6.50).
 function; no random/uuid/shuffle; ties break on (qualification, id); decisions
 consume SQLite rows only as membership sets, never iterated; `decision_log` is
 `ORDER BY seq`. CLI output is byte-identical under `PYTHONHASHSEED`
-1/2/42/1337/999. The remaining caveat — `Router` silently falling back to
-`SystemClock` made R4c wall-clock-dependent — is closed: `evaluate_ack_timeout`
-now **raises `RuntimeError`** unless a scripted clock was injected
-(`router.py`). CLI/UI/API/tests always inject `SimClock`, so the R4c path is
-deterministic and cannot silently degrade.
+1/2/42/1337/999 **when the opt-in AI prose layer is off** (which is the
+documented default contract: with no key set, `--summary` and notification
+bodies are the deterministic templates; with a key set, only the AI *prose*
+varies — routing, ledger, timeline and decisions stay identical). The remaining
+caveat — `Router` silently falling back to `SystemClock` made R4c
+wall-clock-dependent — is closed: `evaluate_ack_timeout` now **raises
+`RuntimeError`** unless a scripted clock was injected (`router.py`).
+CLI/UI/API/tests always inject `SimClock`, so the R4c path is deterministic and
+cannot silently degrade.
 
 ---
 
