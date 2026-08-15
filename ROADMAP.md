@@ -297,9 +297,9 @@ if FastAPI is absent, `build_app()` returns None (module still imports cleanly).
   deterministic keyword scorer (`runbooks.py`, stdlib, no embeddings). Retrieval
   runs only AFTER the decision and feeds the incident summary; the routing path
   never touches runbooks. Determinism preserved even with AI on.
-- **Dashboard menu bar** — section nav (ingress/trace/ranking/decision/ledger/
-  timeline/policy/about) with scroll-spy active state; `#about` panel documents
-  the deliberate non-features (AI chat, Kafka, RAG) and why they stay out of the core.
+- **Dashboard sidebar nav** — dedicated left-sidebar pages
+  (Alert/Trace/Ranking/Decision/Ledger/Timeline/Policy), one view at a time,
+  with the plan-state pill + registry in the sidebar footer.
 
 ---
 
