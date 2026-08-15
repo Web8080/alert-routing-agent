@@ -63,7 +63,7 @@ Deliverables (from the brief): public GitHub repo under `github/web8080`, a
 
 | Area | Status |
 |---|---|
-| BLUEPRINT.md (14,740 words) | ✅ Done |
+| BLUEPRINT.md (15,247 words + §21 addendum) | ✅ Done |
 | models / registry / ranker / snapshotter | ✅ Done |
 | planner / ledger / presence / channels / changes | ✅ Done |
 | decision policy (R1–R6 + delta) | ✅ Done |
@@ -71,11 +71,14 @@ Deliverables (from the brief): public GitHub repo under `github/web8080`, a
 | server.py (optional FastAPI) | ✅ Done |
 | scenario JSON files | ✅ Done |
 | registry.json seed | ✅ Done |
-| tests (29 passing) | ✅ Done |
-| README.md | ✅ Done |
+| tests (72 passing) | ✅ Done |
+| README.md (+ TOC) | ✅ Done |
 | Packaging (pyproject + entry point + Makefile) | ✅ Done |
 | author/date headers on all scripts | ✅ Done (23 files) |
 | Web UI dashboard (stdlib-only) | ✅ Done |
+| Dashboard: hybrid 3-view (Console/Policy/Registry) | ✅ Done |
+| Editable registry (CRUD via UI + API) | ✅ Done |
+| On-call roster (roster.py + roster.json shifts) | ✅ Done |
 | Run + verify all 3 scenarios | ✅ Done |
 | Incident timeline verified | ✅ Done |
 | Public repo under github/web8080 | ⏳ Not started |
@@ -301,6 +304,46 @@ if FastAPI is absent, `build_app()` returns None (module still imports cleanly).
   (Alert/Trace/Ranking/Decision/Ledger/Timeline/Policy), one view at a time,
   with the plan-state pill + registry in the sidebar footer.
 
+### Phase 8 — Dashboard refinement: hybrid 3-view + editable registry + on-call roster ✅ DONE
+- [x] **Hybrid 3-view layout** replaces the single-page stack with a left-sidebar
+      nav — **Console / Policy / Registry** (commit 2b1dcd1).
+- [x] **Console** — live dispatch in one screen: alert panel + custom-alert form,
+      state machine, animated trace (step/pause/replay/speed), ranking table,
+      decision card, notification ledger, incident timeline, R1–R6 policy matrix,
+      AI incident summary + runbook note with a toggle.
+- [x] **Policy** — R1–R6 rule matrix + full decision log + AI summary.
+- [x] **Registry** — CRUD over the live registry (add/edit/delete stakeholders,
+      per-stakeholder channels + expertise) + on-call shift calendar.
+- [x] **`roster.py` + `roster.json`** — on-call shifts (date range, primary +
+      backups). `effective_on_call()` = union of primaries/backups on shifts
+      covering the day; falls back to static registry `on_call` flags when no
+      shift covers the day (backward compatible with the demo).
+- [x] **Roster-aware dispatch** — `ui.py` `_on_call_overrides()` hands the
+      effective on-call map to every dispatch (scenario + custom).
+- [x] **Registry/roster JSON API** — `POST /api/registry` (upsert),
+      `DELETE /api/registry/{sid}`, `POST /api/registry/{sid}/on-call`,
+      `POST/DELETE /api/roster`; shared `_lock` serializes concurrent writes.
+- [x] **New tests (72 total)** — `test_roster.py` (shift validation, covering
+      days, effective on-call), `test_registry_edit.py` (parse/save/upsert/
+      on-call/delete round-trip), `test_runbooks.py` (runbook scorer),
+      `test_live_delivery.py` (live adapters, env-gated). Still stdlib
+      `unittest` (`python3 -m unittest discover`), also passes under pytest.
+- [x] **Dashboard screenshot** in README intro (`dashboard.png`, commit bdd9c6b).
+
+**Phase 8 notes / decisions:**
+- The earlier one-page stack + left-sidebar "dedicated pages" (Phase 6/7 notes)
+  is superseded by the hybrid 3-view layout. Console keeps the dense ops-console
+  feel; Policy and Registry are separate table/CRUD views. No routing logic lives
+  in the front-end — the UI only renders `/api/*` JSON.
+- On-call is a **soft gate** (same as the static flag): the roster resolves who is
+  on call *today*, but the invariant tests still own the guarantees — the roster
+  never changes rank ordering, only the gating set.
+- Roster semantics kept intentionally small (flat date-range shifts, no
+  recurrence/ical yet) — that is the future-work item, not the demo's job.
+- Registry edits are validated through the existing `parse_stakeholder` /
+  `validate_shift` paths, so a corrupt entry fails fast with a named error
+  (E19 preserved).
+
 ---
 
 ## 4. KNOWN DECISIONS / TRADEOFFS RECORDED SO FAR
@@ -331,27 +374,32 @@ if FastAPI is absent, `build_app()` returns None (module still imports cleanly).
 ```
 Alert_routing/
 ├── ROADMAP.md                      ← this file
-├── BLUEPRINT.md                    ← full design spec (14,740 words)
-├── README.md                       ✅
+├── BLUEPRINT.md                    ← full design spec (15,247 words, §21 addendum)
+├── README.md                       ✅ (TOC + hybrid dashboard)
 ├── LICENSE                         ✅ MIT (© 2026 Victor Ibhafidon)
 ├── pyproject.toml                  ✅ installable, `alert-routing` command
 ├── requirements.txt                ✅ optional extras only (core is stdlib)
-├── Makefile                        ✅ run1/run2/run3/run-all/test/serve/install
-├── registry.json                   ✅
+├── Makefile                        ✅ run1/run2/run3/run-all/test/serve/ui/install
+├── registry.json                   ✅ stakeholder seed (7 people)
+├── roster.json                     ✅ on-call shifts (primary + backups per week)
 ├── scenarios/                      ✅
 │   ├── scenario_1_offline.json
 │   ├── scenario_2_channel_fail.json
-│   └── scenario_3_no_downgrade.json
+│   ├── scenario_3_no_downgrade.json
+│   └── proposed/                   ✅ (LLM-proposed, invariant-adopted scenarios)
+├── runbooks/                       ✅ (post-decision runbook corpus, md)
 ├── alert_routing/                  ✅ (all files carry author/date headers)
 │   ├── __init__.py
 │   ├── models.py            registry.py       ranker.py
 │   ├── snapshotter.py       planner.py        ledger.py
 │   ├── presence.py          channels.py       changes.py
 │   ├── decision.py          router.py         cli.py
-│   ├── timeline.py          server.py         (ui.py — planned)
-│   └── static/              (index.html/css/js — planned, zero-dep web UI)
-├── tests/                            ✅ 29 tests
-└── scripts/                          (planned: demo recorder / chaos tester)
+│   ├── timeline.py          server.py         ui.py   ✅ (built)
+│   ├── roster.py            ai.py             runbooks.py
+│   └── static/              (index.html/css/js/favicon — built, dark console)
+├── tests/                            ✅ 72 tests
+├── .github/workflows/ci.yml          ✅ (unit tests + cross-seed determinism)
+└── Dockerfile                        ✅
 ```
 
 ---
@@ -361,9 +409,9 @@ Alert_routing/
 **If `ROADMAP.md` is up to date, the next phase to start is the first `[ ]` item
 in the "Build status" table.** As of this update:
 
-1. **Confirm the UI scope** (design in Phase 6 notes) and build it if approved —
-   stdlib-only `alert_routing/ui.py` + `static/`, reuse `run_scenario` /
-   `render_timeline`, animated trace + policy chips + incident timeline.
+1. **Dashboard refinement is DONE** — hybrid 3-view (Console/Policy/Registry),
+   editable registry, on-call roster, 72 tests, docs in line (README/TESTING/
+   ROADMAP/BLUEPRINT §21). Remaining Phase 6 items are the deliverables:
 2. **Create the public repo** under `github/web8080` via `gh` (public), push,
    verify in a logged-out browser (the brief requires this; it can't be checked
    from inside the sandbox).

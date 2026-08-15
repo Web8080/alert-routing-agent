@@ -14,6 +14,26 @@ here are *correctness guarantees*, and determinism is what makes them provable.
 
 ![Alert Routing — Operations Console](dashboard.png)
 
+## Table of contents
+
+- [The problem](#the-problem)
+- [The guarantees](#the-guarantees-enforced-physically-not-by-convention)
+- [Architecture](#architecture)
+  - [Decision rules](#decision-rules-the-part-to-defend)
+- [Quick start](#quick-start)
+  - [Run it anywhere](#run-it-anywhere-optional)
+  - [Zero-dependency web UI](#zero-dependency-web-ui-stdlib-only--no-install-needed)
+  - [Optional HTTP API](#optional-http-api)
+- [Scenario walkthrough](#scenario-walkthrough-what-the-demo-shows)
+- [Repository layout](#repository-layout)
+- [Design decisions & tradeoffs](#design-decisions--tradeoffs-short-version)
+- [Live delivery + AI](#live-delivery--ai-opt-in-env-gated)
+- [What I'd do next](#what-id-do-next-with-more-time)
+  - [Would an AI chat be wise to add later?](#would-an-ai-chat-be-wise-to-add-later-asked-in-prep)
+  - [Why not Kafka in the core?](#why-not-kafka-in-the-core-asked-in-prep)
+- [Related docs](#related-docs)
+- [License](#license)
+
 ## The problem
 
 > Build an agent that monitors operational metrics, plans a dispatch route to the
@@ -79,7 +99,7 @@ python3 -m alert_routing.cli scenarios/scenario_2_channel_fail.json
 # 3. More senior stakeholder appears, but lower domain qualification → no downgrade
 python3 -m alert_routing.cli scenarios/scenario_3_no_downgrade.json
 
-# 4. Full test suite (unit + scenario + invariant tests)
+# 4. Full test suite (72 tests: unit + scenario + invariant)
 python3 -m unittest discover
 ```
 
@@ -113,8 +133,10 @@ make ui            # or: python3 -m alert_routing.ui --port 8000
 # open http://127.0.0.1:8000/
 ```
 
-The dashboard shows, in one screen:
+The dashboard is a hybrid console/table/CRUD UI — three views behind one
+left-sidebar nav:
 
+**Console** — the live-dispatch screen, everything in one place:
 - **Alert panel** — the ingress payload + a "send custom alert" JSON form.
 - **Stakeholder ranking** — qualification-first table (qual, availability,
   GATED tag for offline/off-call), with the selected recipient highlighted live.
@@ -127,7 +149,19 @@ The dashboard shows, in one screen:
   no-duplicate physically).
 - **Incident timeline** — `render_timeline()` output including the message as sent.
 - **Policy matrix** — R1–R6 chips that light up when a rule fires.
-- **Registry drawer** — read-only stakeholder registry (click ☰ registry).
+- **AI incident summary** — Anthropic summary + runbook note, with a deterministic
+  fallback and an on-screen toggle (AI never affects the routing decision).
+
+**Policy** — the R1–R6 rule matrix, full decision log, and AI summary in one view.
+
+**Registry** — CRUD over the live stakeholder registry + an on-call calendar:
+- Add / edit / delete stakeholders, with per-stakeholder channels and expertise.
+- **On-call shifts** (date range, primary + backups) persisted to `roster.json`;
+  today's on-call chips are computed from shifts and fed into every dispatch.
+
+All three views read and write through the same stdlib `http.server` API
+(`/api/scenarios`, `/api/registry`, `/api/roster`, `/api/dispatch`) — the
+front-end contains zero routing logic.
 
 ### Optional HTTP API
 
@@ -159,7 +193,8 @@ decides whether it's material enough to interrupt).
 ```
 alert_routing/
   models.py       dataclasses: Alert, Stakeholder, Plan, Notification, Verdict, ...
-  registry.py     JSON stakeholder loader + validation
+  registry.py     JSON stakeholder loader + validation (CRUD helpers for the UI)
+  roster.py       on-call shifts: primary + backups per date range
   ranker.py       qualification scoring (pure)
   snapshotter.py  one-time availability eval (single-eval guarantee)
   planner.py      immutable route + channel fallback chains
@@ -171,12 +206,17 @@ alert_routing/
   router.py       orchestrator (dispatch / on_event / acknowledge / close)
   cli.py          scenario driver + trace printer
   timeline.py     incident timeline UI
+  ai.py           optional Anthropic prose layer (post-decision, env-gated)
+  runbooks.py     deterministic runbook scorer + snippet (post-decision)
   ui.py           zero-dependency web dashboard (stdlib http.server)
-  static/         index.html + style.css + app.js (dark ops-console dashboard)
+  static/         index.html + style.css + app.js + favicon.svg (dark console)
   server.py       optional FastAPI (never imported by core)
 scenarios/        the 3 demo scenario JSONs
+scenarios/proposed/  scenarios adopted by the invariant suite (opt-in)
+runbooks/         runbook corpus (md, keyword-scored)
 registry.json     stakeholder seed (7 people, overlapping expertise)
-tests/            unit + scenario + invariant tests
+roster.json       on-call shifts (primary + backups per week)
+tests/            unit + scenario + invariant tests (72)
 ```
 
 ## Design decisions & tradeoffs (short version)
@@ -253,7 +293,10 @@ availability change). Adopted scenarios land in `scenarios/proposed/`.
 
 ## What I'd do next with more time
 
-- On-call rotation calendars (PagerDuty-style) instead of a boolean `on_call`.
+- **Full on-call rotation.** A basic calendar roster already ships (`roster.json`
+  — primary + backups per date range, fed into every dispatch). The next step is
+  a real iCal/PagerDuty-style schedule with recurring shifts and import, so
+  on-call becomes a fully computed gate per dispatch time.
 - A real event bus (Kafka/Redis pub-sub; partition key = `alert_id`) with
   replay — event replay is already idempotent. The scale-out seam is
   `Presence.subscribe` + the durable ledger.
@@ -296,7 +339,7 @@ violate the brief's "small that genuinely works beats large that does not".
 
 ## Related docs
 
-- [`BLUEPRINT.md`](BLUEPRINT.md) — full engineering spec (14,740 words): data model, DDL, policy matrix, edge cases, test plan, demo script.
+- [`BLUEPRINT.md`](BLUEPRINT.md) — full engineering spec (15,247 words): data model, DDL, policy matrix, edge cases, test plan, demo script, §21 as-built addendum.
 - [`TESTING.md`](TESTING.md) — step-by-step verification guide: how to prove each of the five guarantees (no alert loss, no duplicates, no double-query, no downgrade, determinism).
 - [`INTERVIEW_GUIDE.md`](INTERVIEW_GUIDE.md) — edge cases, defendable decisions, likely interviewer Q&A, phase-by-phase lessons learned, cheat sheet.
 - [`ROADMAP.md`](ROADMAP.md) — build status + handoff protocol for future sessions.

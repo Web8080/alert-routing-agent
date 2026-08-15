@@ -1236,7 +1236,7 @@ Pre-submission gate — every row must be satisfied before the email reply is se
 
 - [ ] Public repo `github/web8080/alert-routing` opens in a logged-out browser.
 - [ ] Clean-clone run works from README instructions (no `pip install` beyond the venv).
-- [ ] `python -m unittest` green (all of Sections 13.2–13.4).
+- [ ] `python -m unittest` green (all of Sections 13.2–13.4 — shipped suite is **72 tests**).
 - [ ] Scenario A, B, C reproduce the expected terminal output from `scenarios/`.
 - [ ] Decision log shows named rules (R1–R6) and composed rationales.
 - [ ] Video ≤ 3:00, unlisted, "anyone with the link," opens in a logged-out window.
@@ -1247,7 +1247,80 @@ Pre-submission gate — every row must be satisfied before the email reply is se
 
 ---
 
-*End of blueprint. This document is the contract for implementation: a build that satisfies Sections 2, 5–9, and 13 is the deliverable; anything else is scope creep.*
+## 21. As-Built Addendum — Dashboard refinement (2026-08-15)
+
+*The design sections above are the contract; this addendum records what the
+shipped implementation additionally built on top of them, and where it differs
+from the speculative layout in §15.1. It is appended, never edits, the original.*
+
+### 21.1 Dashboard: hybrid 3-view (Console / Policy / Registry)
+
+The dashboard shipped as a **hybrid console/table/CRUD UI** — three views behind
+a single left-sidebar nav, served by stdlib `http.server` (`alert_routing/ui.py`
++ `static/`). The front-end contains zero routing logic; it renders only the JSON
+API (`/api/scenarios`, `/api/registry`, `/api/roster`, `/api/dispatch`), all of
+which reuse `run_scenario_data` / `render_timeline` / `parse_stakeholder`.
+
+- **Console** — the live-dispatch screen: alert panel + custom-alert JSON form,
+  dispatch state machine (RECEIVED → RANKED → PLANNED → DISPATCHING → CHANGE
+  DETECTED → POLICY DECISION → RESULT), animated trace (step/pause/replay/speed),
+  qualification-first ranking table, decision card (rule/action/target/rationale/
+  result), notification ledger, incident timeline, R1–R6 policy matrix, and an
+  AI incident summary + runbook note with an on-screen toggle.
+- **Policy** — R1–R6 rule matrix, full decision log, and AI summary in one view.
+- **Registry** — CRUD over the live stakeholder registry (add/edit/delete,
+  per-stakeholder channels + expertise, on-call toggle) plus an **on-call shift
+  calendar** and today's on-call chips.
+
+### 21.2 On-call roster (roster.py + roster.json)
+
+Section 16.2 listed "on-call rotation calendars" as future work; a minimal,
+backward-compatible slice is now shipped:
+
+- Shifts are flat date ranges: `{id, start, end, primary, backups}`.
+- `effective_on_call(registry, shifts, day)` returns the union of primaries +
+  backups across shifts covering the day; when **no** shift covers the day the
+  static registry `on_call` flags apply unchanged (the plain demo still works).
+- The UI computes the effective on-call map and hands it to every dispatch
+  (`_on_call_overrides`), so dispatch gating is roster-aware.
+- Recurrence, iCal import, and PagerDuty-style schedules remain future work —
+  intentionally out of scope for the demo.
+
+### 21.3 Registry CRUD
+
+`parse_stakeholder` / `save_registry` gained round-trip editability (the registry
+is no longer read-only at runtime). The UI writes go through the same validation
+(`RegistryValidationError` on malformed entries — E19 preserved). A shared lock
+serializes concurrent writes in the UI server.
+
+### 21.4 Test plan status (supersedes §13 counts)
+
+The shipped suite is **72 tests** — the §13 plan plus `test_roster.py` (shift
+validation, covering days, effective on-call), `test_registry_edit.py` (parse/
+save/upsert/on-call/delete round-trips), `test_runbooks.py` (deterministic
+runbook scorer feeding the incident summary), and `test_live_delivery.py`
+(live SMTP/Slack adapters, env-gated, honest RETRIABLE fallback). Runner: stdlib
+`python3 -m unittest discover` (also passes under pytest). Determinism and
+hermeticity are unchanged — the new tests never touch the network.
+
+### 21.5 As-built repository layout (vs §15.1)
+
+```
+alert_routing/
+  registry.py   + roster.py      + ranker.py      + snapshotter.py
+  planner.py    + ledger.py      + presence.py    + channels.py
+  changes.py    + decision.py    + router.py      + cli.py
+  timeline.py   + ai.py          + runbooks.py    + ui.py (+ static/)
+  server.py                       (optional FastAPI, never imported by core)
+scenarios/  (3 demo scenarios + proposed/)   runbooks/   registry.json
+roster.json   tests/ (72)   .github/workflows/ci.yml   Dockerfile
+```
+
+README/TESTING/ROADMAP have been brought in line with this as-built state.
+
+---
+
+*End of blueprint. This document is the contract for implementation: a build that satisfies Sections 2, 5–9, and 13 is the deliverable; anything else is scope creep. §21 records the shipped additions without editing the contract.*
 
 
 

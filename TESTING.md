@@ -6,8 +6,8 @@ This is the step-by-step verification guide. Everything is reproducible,
 deterministic, and dependency-free (Python 3.10+). Two things are running
 right now while you read this:
 
-- FastAPI API on `http://127.0.0.1:8100`  (docs at `/docs`)
-- Web UI on `http://127.0.0.1:8765`
+- Web UI on `http://127.0.0.1:8000`  (`make ui`)
+- FastAPI API on `http://127.0.0.1:8100`  (docs at `/docs`) — optional
 
 ---
 
@@ -24,13 +24,13 @@ packages (already installed in the throwaway venv `/tmp/ar_srv`):
 
 ---
 
-## 1. The full test suite (29 tests)
+## 1. The full test suite (72 tests)
 
 ```bash
 python3 -m unittest discover
 ```
 
-**Expect:** `Ran 29 tests ... OK`. The suite covers:
+**Expect:** `Ran 72 tests ... OK`. The suite covers:
 
 | File | What it proves |
 |---|---|
@@ -40,6 +40,10 @@ python3 -m unittest discover
 | `test_decision.py` | **P4/P5** — R1–R6 + `MIN_REROUTE_DELTA` gate; ack-timeout; duty-manager; cap |
 | `test_scenarios.py` | end-to-end runs of all 3 scenarios; invariant assertions after every event |
 | `test_timeline.py` | incident timeline + message-as-sent rendering |
+| `test_roster.py` | on-call shifts: validation, covering days, effective on-call (roster vs static flags) |
+| `test_registry_edit.py` | registry CRUD: parse/save round-trip, upsert, on-call toggle, delete |
+| `test_runbooks.py` | deterministic runbook scorer + snippet feeding the incident summary |
+| `test_live_delivery.py` | live SMTP/Slack adapters (env-gated) — honest RETRIABLE fallback, never a faked ACK |
 
 ---
 
@@ -182,19 +186,35 @@ open http://127.0.0.1:8000/
 ```
 
 **What to test, in order:**
-1. Page loads: dark dashboard, header shows `author: Victor Ibhafidon`.
-2. Click **☰ registry** → read-only stakeholder list (7 people, channel chains).
-3. Pick `scenario_1_offline`, click **▶ DISPATCH**. Watch:
+
+**Console view:**
+1. Page loads: dark dashboard, left sidebar with three views —
+   **Console / Policy / Registry**.
+2. Pick `scenario_1_offline`, click **▶ DISPATCH**. Watch:
    - **DISPATCH STATE** light up `RECEIVED → RANKED → PLANNED → DISPATCHING → CHANGE DETECTED → POLICY DECISION → RESULT`.
    - **STAKEHOLDER RANKING** highlight Sarah (live) then David; Maya/Priya stay GATED.
    - **POLICY MATRIX** light the **R2** chip.
    - **DECISION** card: `R2_ABORT_REROUTE` + full rationale.
    - **NOTIFICATION LEDGER**: Sarah `CANCELLED`, David `DELIVERED`.
    - **INCIDENT TIMELINE**: message-as-sent for David with the "why you".
-4. Pause/step/replay + speed slider — all client-side, still deterministic.
-5. Scenario 2 → **R1** chip + same recipient via email. Scenario 3 → **R5** chip.
-6. **Custom alert** tab: paste the JSON, `send custom` — an unknown domain routes
+3. Pause/step/replay + speed slider — all client-side, still deterministic.
+4. Scenario 2 → **R1** chip + same recipient via email. Scenario 3 → **R5** chip.
+5. **Custom alert** tab: paste the JSON, `send custom` — an unknown domain routes
    to the duty manager; a known domain (inventory) ranks Sarah/Maya normally.
+6. **AI summary toggle** on/off — the incident summary (Anthropic, deterministic
+   fallback when unconfigured) and runbook note render under the console.
+
+**Policy view:** rule matrix R1–R6 + the full decision log + AI summary from the
+last dispatch.
+
+**Registry view (CRUD + on-call):**
+7. **On-call today** chips reflect `roster.json` shifts (primary + backups).
+8. **+ add stakeholder** → save → appears in the list; reload the page and it's
+   still there (persisted to `registry.json`).
+9. Edit a stakeholder's channels/expertise or toggle **on-call** → save.
+10. **on-call shifts** → add a shift covering today → the chips update; dispatch
+    again and the roster-aware on-call flags are used (a stakeholder who is
+    shift-primary is on call even if their static flag is off).
 
 ---
 
@@ -229,9 +249,11 @@ module import never fails).
 
 ## 6. Expected "definition of done" checklist
 
-- [ ] `python3 -m unittest discover` → `OK` (29)
+- [ ] `python3 -m unittest discover` → `OK` (72)
 - [ ] All 3 CLI scenarios end `plan=DELIVERED` with the correct R-rule fired
 - [ ] `PYTHONHASHSEED` loop → identical outputs (P5)
 - [ ] File-ledger crash test re-renders the original timeline (P1)
-- [ ] UI: all 4 panels + policy chips update during a live dispatch
+- [ ] UI Console: all panels + policy chips update during a live dispatch
+- [ ] UI Policy: rule matrix + decision log + AI summary render
+- [ ] UI Registry: add/edit/delete stakeholder persists; on-call shifts update today's chips
 - [ ] API: POST returns deterministic id; GET round-trip returns state
