@@ -1236,7 +1236,7 @@ Pre-submission gate — every row must be satisfied before the email reply is se
 
 - [ ] Public repo `github/web8080/alert-routing` opens in a logged-out browser.
 - [ ] Clean-clone run works from README instructions (no `pip install` beyond the venv).
-- [ ] `python -m unittest` green (all of Sections 13.2–13.4 — shipped suite is **72 tests**).
+- [ ] `python -m unittest` green (all of Sections 13.2–13.4 — shipped suite is **88 tests**).
 - [ ] Scenario A, B, C reproduce the expected terminal output from `scenarios/`.
 - [ ] Decision log shows named rules (R1–R6) and composed rationales.
 - [ ] Video ≤ 3:00, unlisted, "anyone with the link," opens in a logged-out window.
@@ -1295,13 +1295,14 @@ serializes concurrent writes in the UI server.
 
 ### 21.4 Test plan status (supersedes §13 counts)
 
-The shipped suite is **72 tests** — the §13 plan plus `test_roster.py` (shift
-validation, covering days, effective on-call), `test_registry_edit.py` (parse/
-save/upsert/on-call/delete round-trips), `test_runbooks.py` (deterministic
-runbook scorer feeding the incident summary), and `test_live_delivery.py`
-(live SMTP/Slack adapters, env-gated, honest RETRIABLE fallback). Runner: stdlib
+The shipped suite is **88 tests** — the §21 count plus `test_agents.py`
+(incident-KB retrieval order + record round-trip, triage brief schema,
+supervisor audit trail + fallback determinism, **honesty** — mode/audit must
+reflect the brief's real source, never a silent AI — and the safety gate that
+flags any stakeholder the kernel did not deliver to). Runner: stdlib
 `python3 -m unittest discover` (also passes under pytest). Determinism and
-hermeticity are unchanged — the new tests never touch the network.
+hermeticity are unchanged — the agentic tests patch `ai_enabled`/pass
+`enabled=False` and never touch the network. See §22 for the layer they test.
 
 ### 21.5 As-built repository layout (vs §15.1)
 
@@ -1310,13 +1311,14 @@ alert_routing/
   registry.py   + roster.py      + ranker.py      + snapshotter.py
   planner.py    + ledger.py      + presence.py    + channels.py
   changes.py    + decision.py    + router.py      + cli.py
-  timeline.py   + ai.py          + runbooks.py    + ui.py (+ static/)
-  server.py                       (optional FastAPI, never imported by core)
-scenarios/  (3 demo scenarios + proposed/)   runbooks/   registry.json
-roster.json   tests/ (72)   .github/workflows/ci.yml   Dockerfile
+  timeline.py   + ai.py          + runbooks.py    + agents.py   + incidents.py
+  ui.py (+ static/)               server.py (optional FastAPI, never core)
+scenarios/  (3 demo scenarios + proposed/)   runbooks/   incidents/ (seeded KB)
+registry.json   roster.json   tests/ (88)   .github/workflows/ci.yml   Dockerfile
 ```
 
-README/TESTING/ROADMAP have been brought in line with this as-built state.
+README/TESTING/ROADMAP/INTERVIEW_GUIDE have been brought in line with this
+as-built state.
 
 ---
 
@@ -1441,6 +1443,21 @@ AI → the *same* trace plus a triage brief (likely cause, first checks, runbook
 similar incidents) and a supervisor audit trail. The closing line: **"the AI
 reasoned over our runbooks and history and made the on-call engineer faster —
 and it could not have changed who was paged."**
+
+### 22.8 As-built status (supersedes the "promise to ship" framing)
+
+Shipped (commit `4418910`): `agents.py` — `TriageAgent`/`CommsAgent`/
+`PostmortemAgent` + `supervise()` (per-agent token/time budget, deterministic
+fallback, audit trail `[{name, ok, latency_ms, fallback}]`) + `safety_check`.
+`incidents.py` — KB load, deterministic similarity, opt-in `record_incident`
+(`ALERT_RECORD_INCIDENTS=1`); `incidents/*.json` seed so retrieval has data on
+first run. Dashboard renders the brief (Console + Policy cards, mode badge).
+`tests/test_agents.py` (+16 → **88 tests**). **Honesty invariant implemented:**
+`mode` and the audit trail reflect the brief's *actual* source — `_parse_brief`
+raises on malformed output so a parse failure records a real fallback, and
+`mode` derives from the triage agent's report only. Live-verified with a real
+Anthropic run (`mode=ai, source=ai`, grounded runbook + past incidents) and a
+keyless fallback run (identical routing trace).
 
 ---
 

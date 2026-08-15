@@ -428,8 +428,10 @@ Alert_routing/
 │   ├── decision.py          router.py         cli.py
 │   ├── timeline.py          server.py         ui.py   ✅ (built)
 │   ├── roster.py            ai.py             runbooks.py
+│   ├── agents.py            incidents.py      ✅ (§22 agentic layer)
 │   └── static/              (index.html/css/js/favicon — built, dark console)
-├── tests/                            ✅ 72 tests
+├── incidents/                          ✅ (seeded triage KB)
+├── tests/                            ✅ 88 tests
 ├── .github/workflows/ci.yml          ✅ (unit tests + cross-seed determinism)
 └── Dockerfile                        ✅
 ```
@@ -442,8 +444,12 @@ Alert_routing/
 in the "Build status" table.** As of this update:
 
 1. **Dashboard refinement is DONE** — hybrid 3-view (Console/Policy/Registry),
-   editable registry, on-call roster, 72 tests, docs in line (README/TESTING/
-   ROADMAP/BLUEPRINT §21). Remaining Phase 6 items are the deliverables:
+   editable registry, on-call roster, docs in line (README/TESTING/
+   ROADMAP/BLUEPRINT §21).
+1b. **Agentic layer is DONE (Phase 9)** — two-lane AI (§22): read-only triage/
+   comms/postmortem agents + supervisor + safety gate, `incidents/` KB,
+   dashboard triage rendering, 88 tests, docs in line (README/TESTING/
+   ROADMAP/BLUEPRINT §22/INTERVIEW_GUIDE).
 2. **Create the public repo** under `github/web8080` via `gh` (public), push,
    verify in a logged-out browser (the brief requires this; it can't be checked
    from inside the sandbox).

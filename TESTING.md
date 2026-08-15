@@ -202,8 +202,15 @@ open http://127.0.0.1:8000/
 4. Scenario 2 → **R1** chip + same recipient via email. Scenario 3 → **R5** chip.
 5. **Custom alert** tab: paste the JSON, `send custom` — an unknown domain routes
    to the duty manager; a known domain (inventory) ranks Sarah/Maya normally.
-6. **AI summary toggle** on/off — the incident summary (Anthropic, deterministic
-   fallback when unconfigured) and runbook note render under the console.
+ 6. **AI summary toggle** on/off — the incident summary (Anthropic, deterministic
+    fallback when unconfigured) and runbook note render under the console.
+ 6b. **AI triage brief** (§22) — after any dispatch the Console/Policy cards show
+    the supervised brief: cause + confidence, first checks, remediation steps,
+    escalation criteria, the retrieved runbook, past incidents with similarity,
+    and a mode badge (`· live` vs `· fallback`) plus agent audit line. With a
+    live key the badge says **live**; without one it says **fallback** — the
+    routing trace is identical in both (two-lane). Toggle the AI switch to prove
+    P5 holds with AI on or off.
 
 **Policy view:** rule matrix R1–R6 + the full decision log + AI summary from the
 last dispatch.
@@ -250,11 +257,12 @@ module import never fails).
 
 ## 6. Expected "definition of done" checklist
 
-- [ ] `python3 -m unittest discover` → `OK` (72)
+- [ ] `python3 -m unittest discover` → `OK` (88)
 - [ ] All 3 CLI scenarios end `plan=DELIVERED` with the correct R-rule fired
 - [ ] `PYTHONHASHSEED` loop → identical outputs (P5)
 - [ ] File-ledger crash test re-renders the original timeline (P1)
 - [ ] UI Console: all panels + policy chips update during a live dispatch
 - [ ] UI Policy: rule matrix + decision log + AI summary render
-- [ ] UI Registry: add/edit/delete stakeholder persists; on-call shifts update today's chips
+- [ ] UI Console/Policy: **AI triage brief** renders cause/checks/runbook/past incidents with a mode badge (live vs fallback)
+- [ ] Registry: add/edit/delete stakeholder persists; on-call shifts update today's chips
 - [ ] API: POST returns deterministic id; GET round-trip returns state
