@@ -14,13 +14,13 @@
     <span class="logo">◉</span>
     <div class="brand-text">
       <h1>ALERT ROUTING</h1>
-      <span class="sub">deterministic on-call dispatch</span>
+      <span class="sub">AI watcher · deterministic on-call dispatch</span>
     </div>
   </div>
 
   <nav class="side-nav" id="side-nav">
-    <a data-page="console" class="active">Console</a>
-    <a data-page="monitor">Monitor</a>
+    <a data-page="monitor" class="active">Monitor</a>
+    <a data-page="console">Console</a>
     <a data-page="policy">Policy</a>
     <a data-page="registry">Registry</a>
   </nav>
@@ -33,11 +33,6 @@
 <div class="shell">
 
   <section class="controls">
-    <label for="scenario">scenario</label>
-    <select id="scenario" disabled>
-      <option value="">loading…</option>
-    </select>
-    <button id="dispatch" disabled class="primary">Dispatch</button>
     <label for="ai-toggle" class="ai-toggle-label" title="Anthropic summary, falls back to deterministic text">
       <input type="checkbox" id="ai-toggle" checked> AI summary
     </label>
@@ -106,7 +101,7 @@
             <span>Dispatch trace</span>
             <span class="head-meta"><span class="live-dot" id="live-dot"></span><span id="trace-status">idle</span></span>
           </div>
-          <div class="card-body"><div id="trace-log" class="log"><div class="placeholder">press Dispatch to start</div></div></div>
+          <div class="card-body"><div id="trace-log" class="log"><div class="placeholder">send a custom alert to start a trace</div></div></div>
         </div>
 
         <div class="card" id="rank-card">

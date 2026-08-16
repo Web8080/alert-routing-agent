@@ -124,12 +124,18 @@ def _feed_for_stem(stem: str) -> Feed:
     a = data["alert"]
     profile = _METRIC_PROFILE.get(a["metric"], _DEFAULT_PROFILE)
     direction = profile["direction"]
+    slope = profile["slope"]
     threshold = float(a["threshold"])
-    value = (threshold * 1.9 if direction == "below" else threshold * 0.3)
+    # Start near the threshold (3 ticks of drift from it) so the watcher's
+    # first breach lands a few seconds after the dashboard opens — a live demo
+    # should show action, not a 30-second build-up.
+    gap = slope * 3
+    value = (threshold + gap if direction == "below"
+             else threshold - gap)
     return Feed(stem=stem, metric=a["metric"], threshold=threshold,
                 severity=a["severity"], domain=a["domain"],
                 context=a.get("context", {}), direction=direction,
-                slope=profile["slope"], value=value)
+                slope=slope, value=value)
 
 
 class AutoMonitor:
