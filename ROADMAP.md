@@ -76,12 +76,13 @@ explaining how to run it + what's next.
 | Packaging (pyproject + entry point + Makefile) | ✅ Done |
 | author/date headers on all scripts | ✅ Done (23 files) |
 | Web UI dashboard (stdlib-only) | ✅ Done |
-| Dashboard: hybrid 3-view (Console/Policy/Registry) | ✅ Done |
+| Dashboard: hybrid 4-view (Console/Monitor/Policy/Registry) | ✅ Done |
 | Editable registry (CRUD via UI + API) | ✅ Done |
 | On-call roster (roster.py + roster.json shifts) | ✅ Done |
 | Run + verify all 7 scenarios | ✅ Done |
 | Incident timeline verified | ✅ Done |
 | Public repo (github.com/Web8080/alert-routing-agent) | ✅ Done |
+| Monitor view: AI watcher → deterministic routing | ✅ Done |
 | Walkthrough video (≤3 min) | ⏳ Not started |
 
 ---
@@ -305,9 +306,9 @@ if FastAPI is absent, `build_app()` returns None (module still imports cleanly).
   (Alert/Trace/Ranking/Decision/Ledger/Timeline/Policy), one view at a time,
   with the plan-state pill + registry in the sidebar footer.
 
-### Phase 8 — Dashboard refinement: hybrid 3-view + editable registry + on-call roster ✅ DONE
-- [x] **Hybrid 3-view layout** replaces the single-page stack with a left-sidebar
-      nav — **Console / Policy / Registry** (commit 2b1dcd1).
+### Phase 8 — Dashboard refinement: hybrid 4-view + editable registry + on-call roster ✅ DONE
+- [x] **Hybrid 4-view layout** replaces the single-page stack with a left-sidebar
+      nav — **Console / Monitor / Policy / Registry** (commit 2b1dcd1).
 - [x] **Console** — live dispatch in one screen: alert panel + custom-alert form,
       state machine, animated trace (step/pause/replay/speed), ranking table,
       decision card, notification ledger, incident timeline, R1–R6 policy matrix,
@@ -327,6 +328,11 @@ if FastAPI is absent, `build_app()` returns None (module still imports cleanly).
 - [x] **SQLite registry store** — edits persist to `registry.db` (overridable
       via `ALERT_REGISTRY_DB` / `--registry-db`) and are read by every
       dispatch; the tracked `registry.json` seed is refreshed on save.
+- [x] **Monitor view (AI watcher → deterministic routing)** — one feed per
+      scenario, auto-advancing telemetry; every breach auto-submits to the
+      deterministic router into a shared ledger. Order is severity→deviation
+      (AI advisory notes only, never routing). `GET /api/monitor` +
+      `POST /api/monitor/tick`.
 - [x] **New tests (72 total)** — `test_roster.py` (shift validation, covering
       days, effective on-call), `test_registry_edit.py` (parse/save/upsert/
       on-call/delete round-trip), `test_runbooks.py` (runbook scorer),
@@ -336,8 +342,9 @@ if FastAPI is absent, `build_app()` returns None (module still imports cleanly).
 
 **Phase 8 notes / decisions:**
 - The earlier one-page stack + left-sidebar "dedicated pages" (Phase 6/7 notes)
-  is superseded by the hybrid 3-view layout. Console keeps the dense ops-console
-  feel; Policy and Registry are separate table/CRUD views. No routing logic lives
+  is superseded by the hybrid 4-view layout. Console keeps the dense ops-console
+  feel; Monitor auto-submits breaches to the deterministic router; Policy and
+  Registry are separate table/CRUD views. No routing logic lives
   in the front-end — the UI only renders `/api/*` JSON.
 - On-call is a **soft gate** (same as the static flag): the roster resolves who is
   on call *today*, but the invariant tests still own the guarantees — the roster
@@ -408,6 +415,26 @@ if FastAPI is absent, `build_app()` returns None (module still imports cleanly).
       candidate / single-event-equivalence / R4b-after-ack), scenario 4–7
       end-to-end, runbook retrieval for the new domains, ranker order update.
 
+### Phase 11 — Monitor view: AI watcher → deterministic routing ✅ DONE
+
+- [x] **`monitor.py` `AutoMonitor`** — one telemetry feed per bundled scenario
+      (metric/threshold/severity/domain + deterministic slope); values drift
+      over a virtual clock and breach on their own schedule.
+- [x] **Every breach auto-submits** to the deterministic router into ONE shared
+      durable ledger — no manual scenario switching. Submission order is
+      deterministic (severity → deviation); alert_ids are unique per fire
+      (`mon-<stem>-<seq>`) so repeat breaches are never deduped away.
+- [x] **AI watcher is advisory only** — `prose_or_fallback("monitor", …)` writes
+      a one-line note per dispatch AFTER the routing decision; deterministic
+      fallback when AI is off or unreachable. AI never changes who is notified.
+- [x] **Dashboard Monitor view** — feed table (value/threshold/breach ×count),
+      start/stop + interval, streaming activity feed (severity, recipient, rule,
+      plan, watcher note), AI badge. `GET /api/monitor` + `POST /api/monitor/tick`.
+- [x] **New tests (121 total)** — `test_monitor.py`: feeds cover all scenarios,
+      severity→deviation ordering, breach→router dispatch, unique alert_ids,
+      shared-ledger accumulation, AI-note live vs deterministic fallback, feed
+      cooldown (no per-tick spam).
+
 ---
 
 ## 4. KNOWN DECISIONS / TRADEOFFS RECORDED SO FAR
@@ -467,7 +494,7 @@ Alert_routing/
 │   ├── agents.py            incidents.py      ✅ (§22 agentic layer)
 │   └── static/              (index.html/css/js/favicon — built, dark console)
 ├── incidents/                          ✅ (seeded triage KB)
-├── tests/                            ✅ 113 tests
+├── tests/                            ✅ 121 tests
 ├── .github/workflows/ci.yml          ✅ (unit tests + cross-seed determinism)
 └── Dockerfile                        ✅
 ```
@@ -479,17 +506,17 @@ Alert_routing/
 **If `ROADMAP.md` is up to date, the next phase to start is the first `[ ]` item
 in the "Build status" table.** As of this update:
 
-1. **Dashboard refinement is DONE** — hybrid 3-view (Console/Policy/Registry),
-   editable registry, on-call roster, docs in line (README/TESTING/
+1. **Dashboard refinement is DONE** — hybrid 4-view (Console/Monitor/Policy/
+   Registry), editable registry, on-call roster, docs in line (README/TESTING/
    ROADMAP/BLUEPRINT §21).
 1b. **Agentic layer is DONE (Phase 9)** — two-lane AI (§22): read-only triage/
    comms/postmortem agents + supervisor + safety gate, `incidents/` KB,
-    dashboard triage rendering, 113 tests, docs in line (README/TESTING/
+    dashboard triage rendering, 121 tests, docs in line (README/TESTING/
     ROADMAP/BLUEPRINT §22).
 1c. **Simultaneous evaluation + new scenario domains is DONE (Phase 10)** — `R2B`
    batch fold (one decision window ⇒ one verdict), 7 scripted scenarios across
    inventory / contracts / sla / anomaly domains, 6 runbooks + 6 incidents,
-   6-feed sensors, 113 tests.
+   6-feed sensors, 121 tests.
 2. **Public repo is live** at `github.com/Web8080/alert-routing-agent` (CI
    green, Render-deployed dashboard).
 3. **Record/upload the ≤3-min walkthrough video** (script in BLUEPRINT.md §14).

@@ -44,6 +44,11 @@ def fallback_incident_summary(alert, plan_state: str, final_sid: Optional[str]) 
             f"{final}. Decisions are in the decision_log.")
 
 
+def fallback_monitor_note(summary_line: str) -> str:
+    """Deterministic watcher note for the Monitor view (AI off / unreachable)."""
+    return f"watcher: {summary_line}"
+
+
 # ------------------------------------------------------------------ provider
 
 class AnthropicProse:
@@ -110,6 +115,15 @@ class AnthropicProse:
             )
         return self._complete(system, prompt, max_tokens=350)
 
+    def monitor_note(self, summary_line: str) -> str:
+        system = ("You are a monitoring watcher over an operations telemetry "
+                  "floor. The deterministic routing agent has already handled "
+                  "the alert. Reply with ONE short, factual sentence describing "
+                  "what the telemetry showed and that routing handled it. "
+                  "No markdown, no emoji.")
+        prompt = summary_line
+        return self._complete(system, prompt, max_tokens=80)
+
 
 def prose_or_fallback(kind: str, *args, fallback) -> str:
     """Try the AI provider; on any failure return the deterministic fallback."""
@@ -123,6 +137,9 @@ def prose_or_fallback(kind: str, *args, fallback) -> str:
         if kind == "summary":
             alert, plan_state, final_sid, trace, runbook = args
             return provider.incident_summary(alert, plan_state, final_sid, trace, runbook)
+        if kind == "monitor":
+            summary_line = args[0]
+            return provider.monitor_note(summary_line)
     except (urllib.error.URLError, urllib.error.HTTPError, KeyError,
             ValueError, OSError, RuntimeError):
         pass

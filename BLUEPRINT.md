@@ -1253,13 +1253,14 @@ Pre-submission gate — every row must be satisfied before the email reply is se
 shipped implementation additionally built on top of them, and where it differs
 from the speculative layout in §15.1. It is appended, never edits, the original.*
 
-### 21.1 Dashboard: hybrid 3-view (Console / Policy / Registry)
+### 21.1 Dashboard: hybrid 4-view (Console / Monitor / Policy / Registry)
 
-The dashboard shipped as a **hybrid console/table/CRUD UI** — three views behind
+The dashboard shipped as a **hybrid console/table/CRUD UI** — four views behind
 a single left-sidebar nav, served by stdlib `http.server` (`alert_routing/ui.py`
 + `static/`). The front-end contains zero routing logic; it renders only the JSON
-API (`/api/scenarios`, `/api/registry`, `/api/roster`, `/api/dispatch`), all of
-which reuse `run_scenario_data` / `render_timeline` / `parse_stakeholder`.
+API (`/api/scenarios`, `/api/registry`, `/api/roster`, `/api/dispatch`,
+`/api/monitor`), all of which reuse `run_scenario_data` / `render_timeline` /
+`parse_stakeholder`.
 Registry edits land in a **SQLite store** (`RegistryStore`, default
 `registry.db` beside the JSON, overridable via `ALERT_REGISTRY_DB` /
 `--registry-db`): the DB is the runtime source of truth, dispatches read it
@@ -1272,6 +1273,14 @@ the repo stays a clean bootstrap.
   qualification-first ranking table, decision card (rule/action/target/rationale/
   result), notification ledger, incident timeline, R1–R6 policy matrix, and an
   AI incident summary + runbook note with an on-screen toggle.
+- **Monitor** — `monitor.py` `AutoMonitor`: one telemetry feed per bundled
+  scenario (metric/threshold/severity/domain + a deterministic slope), values
+  drift over a virtual clock and breach on their own schedule. Every breach is
+  auto-submitted to the **deterministic router** into ONE shared ledger (no
+  manual scenario switching); submission order is severity → deviation. The AI
+  watcher is advisory only — a one-line note per dispatch, written after the
+  decision, with a deterministic fallback (`prose_or_fallback("monitor", …)`).
+  Driven by `GET /api/monitor` + `POST /api/monitor/tick`.
 - **Policy** — R1–R6 rule matrix, full decision log, and AI summary in one view.
 - **Registry** — CRUD over the live stakeholder registry (add/edit/delete,
   per-stakeholder channels + expertise, on-call toggle) plus an **on-call shift
@@ -1317,9 +1326,10 @@ alert_routing/
   planner.py    + ledger.py      + presence.py    + channels.py
   changes.py    + decision.py    + router.py      + cli.py
   timeline.py   + ai.py          + runbooks.py    + agents.py   + incidents.py
+  monitor.py    + metrics_feed.py
   ui.py (+ static/)               server.py (optional FastAPI, never core)
-scenarios/  (3 scripted scenarios + proposed/)   runbooks/   incidents/ (seeded KB)
-registry.json   roster.json   tests/ (113)   .github/workflows/ci.yml   Dockerfile
+scenarios/  (7 scripted scenarios + proposed/)   runbooks/   incidents/ (seeded KB)
+registry.json   roster.json   tests/ (121)   .github/workflows/ci.yml   Dockerfile
 ```
 
 README/TESTING/ROADMAP have been brought in line with this
@@ -1333,6 +1343,11 @@ as-built state.
 with AI". This section specifies what we add and — equally important — what we
 deliberately never add. It is a design contract, not a promise to ship
 everything before the walkthrough.*
+
+> **Update 2026-08-16 (Monitor view):** the same rule holds for the dashboard's
+> Monitor — the AI is a **watcher**, not a router. It scans every feed and
+> writes an advisory note per dispatch, but *every* breach is submitted to the
+> deterministic router and AI output can never change who is notified. See §21.1.
 
 ### 22.1 The argument (why the hard part *must* stay deterministic)
 

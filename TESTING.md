@@ -24,13 +24,13 @@ packages (already installed in the throwaway venv `/tmp/ar_srv`):
 
 ---
 
-## 1. The full test suite (113 tests)
+## 1. The full test suite (121 tests)
 
 ```bash
 python3 -m unittest discover
 ```
 
-**Expect:** `Ran 113 tests ... OK`. The suite covers:
+**Expect:** `Ran 121 tests ... OK`. The suite covers:
 
 | File | What it proves |
 |---|---|
@@ -193,8 +193,8 @@ open http://127.0.0.1:8000/
 **What to test, in order:**
 
 **Console view:**
-1. Page loads: dark dashboard, left sidebar with three views —
-   **Console / Policy / Registry**.
+1. Page loads: dark dashboard, left sidebar with four views —
+   **Console / Monitor / Policy / Registry**.
 2. Pick `scenario_1_offline`, click **▶ DISPATCH**. Watch:
    - **DISPATCH STATE** light up `RECEIVED → RANKED → PLANNED → DISPATCHING → CHANGE DETECTED → POLICY DECISION → RESULT`.
    - **STAKEHOLDER RANKING** highlight Sarah (live) then David; Maya/Priya stay GATED.
@@ -264,7 +264,7 @@ module import never fails).
 
 ## 6. Expected "definition of done" checklist
 
-- [ ] `python3 -m unittest discover` → `OK` (113)
+- [ ] `python3 -m unittest discover` → `OK` (121)
 - [ ] All 7 CLI scenarios end `plan=DELIVERED` with the correct R-rule fired
 - [ ] `PYTHONHASHSEED` loop → identical outputs (P5)
 - [ ] File-ledger crash test re-renders the original timeline (P1)
@@ -272,4 +272,9 @@ module import never fails).
 - [ ] UI Policy: rule matrix + decision log + AI summary render
 - [ ] UI Console/Policy: **AI triage brief** renders cause/checks/runbook/past incidents with a mode badge (live vs fallback)
 - [ ] Registry: add/edit/delete stakeholder persists; on-call shifts update today's chips
+- [ ] Monitor: ▶ start monitoring → feeds drift and breach on their own; every
+      breach auto-dispatches (activity entries show rule + recipient + plan);
+      AI watcher badge shows "live (advisory)" or "off — deterministic"
+- [ ] Monitor: every breach is submitted (no feed ever goes silent); same ticks
+      in the same order when AI is off (deterministic submission order)
 - [ ] API: POST returns deterministic id; GET round-trip returns state

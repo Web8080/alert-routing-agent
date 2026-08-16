@@ -111,7 +111,7 @@ python3 -m alert_routing.cli scenarios/scenario_6_sla_breach_ack_timeout.json
 # 7. MEDIUM anomaly score never auto-escalates (severity gate on the new domain)
 python3 -m alert_routing.cli scenarios/scenario_7_anomaly_score_medium.json
 
-# Full test suite (113 tests: unit + scenario + invariant + agentic-layer)
+# Full test suite (121 tests: unit + scenario + invariant + agentic-layer + monitor)
 python3 -m unittest discover
 ```
 
@@ -149,7 +149,7 @@ make ui            # or: python3 -m alert_routing.ui --port 8000
 # open http://127.0.0.1:8000/
 ```
 
-The dashboard is a hybrid console/table/CRUD UI — three views behind one
+The dashboard is a hybrid console/table/CRUD UI — four views behind one
 left-sidebar nav:
 
 **Console** — the live-dispatch screen, everything in one place:
@@ -178,9 +178,20 @@ left-sidebar nav:
   `ALERT_REGISTRY_DB` or `--registry-db`) and are read back by every dispatch;
   the git-tracked `registry.json` seed is refreshed on each save.
 
-All three views read and write through the same stdlib `http.server` API
-(`/api/scenarios`, `/api/registry`, `/api/roster`, `/api/dispatch`) — the
-front-end contains zero routing logic.
+**Monitor** — an AI watcher over every scenario feed, hands the work to the
+deterministic router (no manual scenario switching):
+- Each bundled scenario becomes a **telemetry feed**; values drift over a
+  virtual clock and breach their thresholds on their own schedule.
+- Every breach is automatically submitted to the deterministic routing agent,
+  which does all the routing (who/why/how). Selection order is deterministic
+  (severity, then deviation) — the AI never decides or alters routing.
+- When AI is enabled, the watcher adds a one-line advisory note per dispatch
+  (deterministic fallback when off or unreachable). All activity lands in one
+  shared ledger and streams into the activity feed.
+
+All four views read and write through the same stdlib `http.server` API
+(`/api/scenarios`, `/api/registry`, `/api/roster`, `/api/dispatch`,
+`/api/monitor`) — the front-end contains zero routing logic.
 
 ### Optional HTTP API
 
@@ -242,7 +253,7 @@ runbooks/         runbook corpus (6 md, keyword-scored)
 incidents/        seeded past-incident KB (6, retrieval for the triage brief)
 registry.json     stakeholder seed (9 people, overlapping expertise)
 roster.json       on-call shifts (primary + backups per week)
-tests/            unit + scenario + invariant + agentic-layer tests (113)
+tests/            unit + scenario + invariant + agentic-layer + monitor tests (121)
 ```
 
 ## Design decisions & tradeoffs (short version)

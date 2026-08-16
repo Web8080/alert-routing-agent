@@ -782,3 +782,60 @@ button.danger:hover:not(:disabled) { border-color: var(--danger); }
   .side-foot { display: none; }
   .shell { padding: 14px; }
 }
+
+/* ---------------- monitor page ---------------- */
+
+.monitor-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+.monitor-top .ready { color: var(--ok); }
+.monitor-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
+@media (max-width: 1100px) { .monitor-grid { grid-template-columns: 1fr; } }
+
+.mon-feed { width: 100%; border-collapse: collapse; }
+.mon-feed th {
+  text-align: left;
+  color: var(--dim);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border2);
+}
+.mon-feed td { padding: 7px 8px; border-bottom: 1px solid var(--border2); font-size: 12.5px; }
+.mon-feed tr.breach td { background: rgba(248, 81, 73, 0.06); }
+.mon-feed .mono { font-family: var(--mono); }
+.breach-tag { color: var(--danger); font-family: var(--mono); font-size: 11px; font-weight: 700; margin-left: 4px; }
+
+.mon-activity { display: flex; flex-direction: column; gap: 8px; max-height: 520px; overflow-y: auto; }
+.mon-entry {
+  border: 1px solid var(--border2);
+  border-left: 3px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 12.5px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.mon-entry.crit { border-left-color: var(--danger); }
+.mon-entry .mon-seq { color: var(--dim); font-family: var(--mono); font-size: 11px; }
+.mon-entry .mon-alert { font-family: var(--mono); }
+.mon-entry .sev {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 1px 8px;
+  color: var(--warn);
+}
+.mon-entry.crit .sev { color: var(--danger); border-color: var(--danger); }
+.mon-entry .mon-recipient { color: var(--ok); font-weight: 600; }
+.mon-entry .mon-rule { font-family: var(--mono); font-size: 11px; }
+.mon-entry .mon-plan { font-family: var(--mono); font-size: 11px; color: var(--accent); }
+.mon-entry .mon-note { flex-basis: 100%; color: var(--dim); font-size: 12px; margin-top: 2px; }

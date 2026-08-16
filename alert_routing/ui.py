@@ -15,6 +15,9 @@ JSON API that reuses the exact same router code path as the CLI:
     GET  /api/roster                   → on-call calendar shifts + today's effect
     POST /api/roster                   → add / update a shift
     DELETE /api/roster/<id>            → remove a shift
+    GET  /api/monitor                  → monitor feeds + auto-dispatch activity
+    POST /api/monitor/tick             → advance all feeds; submit breaches to
+                                         the deterministic router (Monitor view)
 
 Usage:
     python -m alert_routing.ui [--port 8000] [--registry registry.json]
@@ -72,6 +75,11 @@ def _coerce_store(source):
     """
     from .registry import RegistryStore
     return source if isinstance(source, RegistryStore) else RegistryStore(json_path=source)
+
+
+def _ai_enabled() -> bool:
+    from . import settings
+    return settings.ai_enabled()
 
 
 def _result_payload(router, alert_id: str) -> dict:
@@ -359,6 +367,8 @@ def _save_shift(body: dict, source, roster_path: str) -> list[dict]:
 
 def build_handler(source) -> type[BaseHTTPRequestHandler]:
     store = _coerce_store(source)
+    from .monitor import build_monitor
+    monitor = build_monitor(store, str(_ROSTER_PATH))
 
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, fmt: str, *args):  # quieter default logging
@@ -402,6 +412,12 @@ def build_handler(source) -> type[BaseHTTPRequestHandler]:
                 self._send_json({"stakeholders": _registry_payload(store, _ROSTER_PATH)})
             elif path == "/api/roster":
                 self._send_json(_roster_payload(store, _ROSTER_PATH))
+            elif path == "/api/monitor":
+                self._send_json({
+                    "feeds": monitor.feed_payload(),
+                    "activity": [r.to_dict() for r in monitor.records],
+                    "ai_enabled": _ai_enabled(),
+                })
             else:
                 self.send_error(404, "not found")
 
@@ -447,6 +463,15 @@ def build_handler(source) -> type[BaseHTTPRequestHandler]:
                     if path == "/api/roster":
                         shifts = _save_shift(body, store, _ROSTER_PATH)
                         self._send_json({"ok": True, "shifts": shifts})
+                        return
+                    if path == "/api/monitor/tick":
+                        dispatches = monitor.tick()
+                        self._send_json({
+                            "feeds": monitor.feed_payload(),
+                            "dispatches": dispatches,
+                            "activity_count": len(monitor.records),
+                            "ai_enabled": _ai_enabled(),
+                        })
                         return
                     m = re.match(r"^/api/registry/([^/]+)/on-call$", path)
                     if m:

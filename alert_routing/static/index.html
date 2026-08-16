@@ -20,6 +20,7 @@
 
   <nav class="side-nav" id="side-nav">
     <a data-page="console" class="active">Console</a>
+    <a data-page="monitor">Monitor</a>
     <a data-page="policy">Policy</a>
     <a data-page="registry">Registry</a>
   </nav>
@@ -186,6 +187,46 @@
 
       </div>
 
+    </section>
+
+    <!-- ============ MONITOR ============ -->
+    <section class="page" id="monitor">
+      <h2><span class="h-num">MONITOR</span> AI watcher → deterministic routing</h2>
+
+      <div class="monitor-top">
+        <div>
+          <button id="mon-start" class="primary">▶ start monitoring</button>
+          <span id="mon-state" class="dim">stopped — all feeds asleep</span>
+        </div>
+        <label class="speed-label">interval <input type="range" id="mon-interval" min="500" max="8000" value="2500" title="ms between ticks"></label>
+      </div>
+
+      <div class="monitor-grid">
+        <div class="card">
+          <div class="card-head">
+            <span>Telemetry feeds</span>
+            <span class="head-meta dim">every breach is submitted to the deterministic router</span>
+          </div>
+          <div class="card-body">
+            <table class="mon-feed">
+              <thead>
+                <tr><th>scenario</th><th>metric</th><th>value</th><th>threshold</th><th>severity</th><th>domain</th><th>state</th></tr>
+              </thead>
+              <tbody id="mon-feed-body"><tr><td colspan="7" class="placeholder">loading…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <span>Auto-dispatch activity</span>
+            <span id="mon-ai-badge" class="head-meta dim mono"></span>
+          </div>
+          <div class="card-body">
+            <div id="mon-activity" class="mon-activity"><div class="placeholder">start monitoring — the watcher scans every feed and the router does the work</div></div>
+          </div>
+        </div>
+      </div>
     </section>
 
     <!-- ============ POLICY ============ -->

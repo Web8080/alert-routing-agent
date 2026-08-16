@@ -12,6 +12,10 @@ const state = {
   currentSid: null,
   registryData: [],
   roster: null,
+  monTimer: null,
+  monOn: false,
+  monFeeds: [],
+  monActivity: [],
 };
 
 const $ = (id) => document.getElementById(id);
@@ -676,6 +680,100 @@ async function loadRegistry() {
   paintShiftList(rost.shifts || []);
 }
 
+/* ---------------- monitor page ---------------- */
+
+async function monTick() {
+  if (!state.monOn) return;
+  const data = await api("/api/monitor/tick", { method: "POST" });
+  if (data.error) return;
+  state.monFeeds = data.feeds || [];
+  paintMonitorFeeds();
+  (data.dispatches || []).forEach((r) => state.monActivity.unshift(r));
+  paintMonitorActivity();
+  monBadge(data.ai_enabled);
+}
+
+function monBadge(enabled) {
+  $("mon-ai-badge").textContent = enabled ? "· AI watcher live (advisory)" : "· AI off — deterministic watcher notes";
+}
+
+function paintMonitorFeeds() {
+  const body = $("mon-feed-body");
+  body.innerHTML = "";
+  if (!state.monFeeds.length) {
+    body.innerHTML = '<tr><td colspan="7" class="placeholder">no feeds</td></tr>';
+    return;
+  }
+  for (const f of state.monFeeds) {
+    const tr = document.createElement("tr");
+    tr.className = f.breached ? "breach" : "";
+    tr.innerHTML =
+      "<td>" + escapeHtml(f.stem) + "</td>" +
+      "<td>" + escapeHtml(f.metric) + "</td>" +
+      "<td>" + Number(f.value).toFixed(2) + "</td>" +
+      "<td>" + f.threshold + "</td>" +
+      "<td>" + escapeHtml(f.severity) + "</td>" +
+      "<td>" + escapeHtml(f.domain) + "</td>" +
+      "<td>" + (f.breached
+        ? '<span class="dot online"></span><span class="breach-tag">BREACH' +
+          (f.breaches ? " ×" + f.breaches : "") + "</span>"
+        : '<span class="dot offline"></span><span class="dim">ok</span>') + "</td>";
+    body.appendChild(tr);
+  }
+}
+
+function paintMonitorActivity() {
+  const wrap = $("mon-activity");
+  wrap.innerHTML = "";
+  if (!state.monActivity.length) {
+    wrap.innerHTML = '<div class="placeholder">start monitoring — the watcher scans every feed and the router does the work</div>';
+    return;
+  }
+  for (const r of state.monActivity) {
+    const div = document.createElement("div");
+    div.className = "mon-entry" + (r.severity === "CRITICAL" ? " crit" : "");
+    const sev = '<span class="sev">' + escapeHtml(r.severity) + "</span>";
+    div.innerHTML =
+      '<span class="mon-seq">#' + r.seq + "</span>" +
+      '<span class="mon-alert mono">' + escapeHtml(r.metric) + " " +
+      Number(r.value).toFixed(1) + " (" + r.threshold + ")</span>" +
+      sev +
+      '<span class="mon-recipient">' + escapeHtml(r.recipient || "unresolved") + "</span>" +
+      '<span class="mon-rule dim">' + escapeHtml(r.rule || "—") + "</span>" +
+      '<span class="mon-plan">' + escapeHtml(r.plan_state) + "</span>" +
+      '<div class="mon-note">' + escapeHtml(r.note) + "</div>";
+    wrap.appendChild(div);
+  }
+}
+
+function startMonitor() {
+  state.monOn = true;
+  $("mon-start").textContent = "⏸ stop monitoring";
+  $("mon-state").textContent = "running — watcher scanning all feeds";
+  $("mon-state").classList.add("ready");
+  const interval = Number($("mon-interval").value);
+  monTick();
+  state.monTimer = setInterval(monTick, interval);
+}
+
+function stopMonitor() {
+  state.monOn = false;
+  if (state.monTimer) { clearInterval(state.monTimer); state.monTimer = null; }
+  $("mon-start").textContent = "▶ start monitoring";
+  $("mon-state").textContent = "stopped";
+  $("mon-state").classList.remove("ready");
+}
+
+async function loadMonitor() {
+  const data = await api("/api/monitor");
+  if (data.error) return;
+  state.monFeeds = data.feeds || [];
+  state.monActivity = data.activity || [];
+  paintMonitorFeeds();
+  paintMonitorActivity();
+  monBadge(data.ai_enabled);
+}
+
 /* ---------------- controls ---------------- */
 
 function setControls(disable) {
@@ -744,8 +842,12 @@ $("ch-add").addEventListener("click", () => addChannelRow("email", 1, ""));
 $("roster-open").addEventListener("click", () => openShiftEditor(null));
 $("shift-cancel").addEventListener("click", () => $("roster-panel").classList.add("hidden"));
 $("shift-form").addEventListener("submit", saveShift);
+$("mon-start").addEventListener("click", () => {
+  if (state.monOn) stopMonitor();
+  else startMonitor();
+});
 
-const PAGES = ["console", "policy", "registry"];
+const PAGES = ["console", "monitor", "policy", "registry"];
 function switchPage(name) {
   if (!PAGES.includes(name)) return;
   for (const id of PAGES) {
@@ -756,6 +858,7 @@ function switchPage(name) {
     link.classList.toggle("active", link.dataset.page === name);
   }
   if (name === "registry") loadRegistry();
+  if (name === "monitor") loadMonitor();
   const head = document.querySelector(".page.active h2");
   if (head) document.title = "Alert Routing — " + head.textContent.replace(/\s+/g, " ").trim();
 }
