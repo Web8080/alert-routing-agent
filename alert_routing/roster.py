@@ -10,7 +10,7 @@ and backups:
 
 Effective on-call for a given day is the union of primaries + backups across
 every shift covering that day. When NO shift covers the day, the registry's
-static `on_call` flags win (backward compatible with the plain demo).
+static `on_call` flags win (backward compatible with the plain registry).
 """
 
 from __future__ import annotations

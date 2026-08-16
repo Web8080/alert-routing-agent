@@ -4,7 +4,7 @@
 
 .PHONY: run1 run2 run3 run4 run5 run6 run7 run-all test test-v serve ui install
 
-## Demo scenarios
+## Scripted scenarios
 run1: ; python3 -m alert_routing.cli scenarios/scenario_1_offline.json
 run2: ; python3 -m alert_routing.cli scenarios/scenario_2_channel_fail.json
 run3: ; python3 -m alert_routing.cli scenarios/scenario_3_no_downgrade.json

@@ -9,7 +9,7 @@ runbook corpus and the past-incident KB. No agent has a tool that can change who
 was notified, which channel, or any escalation — that is the safety property.
 
 Everything fails safe: with AI off, or on any network/API/parse failure, the
-supervisor substitutes deterministic fallbacks, so tests and the demo are
+supervisor substitutes deterministic fallbacks, so tests and the walkthrough are
 hermetic and P5 is untouched. The only optional dependency is the existing
 Anthropic call (stdlib urllib); no agent framework.
 """

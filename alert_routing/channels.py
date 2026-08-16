@@ -219,7 +219,7 @@ def adapter_for(name: str, presence: Presence) -> BaseAdapter:
     """Return the real adapter when its transport is configured, else the stub.
 
     Real delivery is an opt-in, env-gated enhancement: with nothing set the
-    adapters are the deterministic stubs the tests and the demo depend on.
+    adapters are the deterministic stubs the tests and the walkthrough depend on.
     """
     if name == "email" and settings.smtp_enabled():
         return RealEmailAdapter(presence)

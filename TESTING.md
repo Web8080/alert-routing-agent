@@ -24,13 +24,13 @@ packages (already installed in the throwaway venv `/tmp/ar_srv`):
 
 ---
 
-## 1. The full test suite (101 tests)
+## 1. The full test suite (106 tests)
 
 ```bash
 python3 -m unittest discover
 ```
 
-**Expect:** `Ran 101 tests ... OK`. The suite covers:
+**Expect:** `Ran 106 tests ... OK`. The suite covers:
 
 | File | What it proves |
 |---|---|
@@ -48,7 +48,7 @@ python3 -m unittest discover
 
 ---
 
-## 2. The seven demo scenarios (CLI)
+## 2. The seven scripted scenarios (CLI)
 
 ```bash
 python3 -m alert_routing.cli scenarios/scenario_1_offline.json
@@ -261,7 +261,7 @@ module import never fails).
 
 ## 6. Expected "definition of done" checklist
 
-- [ ] `python3 -m unittest discover` → `OK` (101)
+- [ ] `python3 -m unittest discover` → `OK` (106)
 - [ ] All 7 CLI scenarios end `plan=DELIVERED` with the correct R-rule fired
 - [ ] `PYTHONHASHSEED` loop → identical outputs (P5)
 - [ ] File-ledger crash test re-renders the original timeline (P1)

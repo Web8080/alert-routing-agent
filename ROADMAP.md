@@ -32,7 +32,7 @@ Every session working on this project **must** follow this protocol:
 
 ## 1. PROJECT SUMMARY
 
-Automated alert-routing agent (interview take-home). An alert event (metric,
+Automated alert-routing agent. An alert event (metric,
 value, threshold, severity) is ranked against a stakeholder registry by domain
 expertise and seniority; the best *available* candidate is dispatched via their
 preferred channel; and when availability/channel health/the qualified population
@@ -40,10 +40,10 @@ changes **mid-flight**, the system re-routes or escalates in parallel —
 guaranteeing: **no duplicate notifications, no double-querying availability,
 no downgrade to a less-qualified person, full alert context preserved.**
 
-Deliverables (from the brief): public GitHub repo under `github/web8080`, a
-≤3-minute demo video, and a README explaining how to run it + what's next.
+Deliverables: a public GitHub repo, a ≤3-minute walkthrough video, and a README
+explaining how to run it + what's next.
 
-### Core decisions (locked, defended in BLUEPRINT.md §12)
+### Core decisions (locked, rationale in BLUEPRINT.md §12)
 - **Python 3, standard-library only** core (`sqlite3`, `dataclasses`, `json`, `argparse`, `threading`).
 - **Deterministic policy engine**, no LLM in the routing hot path.
 - **SQLite ledger** = source of truth (check-then-claim dedup).
@@ -81,8 +81,8 @@ Deliverables (from the brief): public GitHub repo under `github/web8080`, a
 | On-call roster (roster.py + roster.json shifts) | ✅ Done |
 | Run + verify all 7 scenarios | ✅ Done |
 | Incident timeline verified | ✅ Done |
-| Public repo under github/web8080 | ⏳ Not started |
-| Demo video (≤3 min) | ⏳ Not started |
+| Public repo (github.com/Web8080/alert-routing-agent) | ✅ Done |
+| Walkthrough video (≤3 min) | ⏳ Not started |
 
 ---
 
@@ -91,11 +91,11 @@ Deliverables (from the brief): public GitHub repo under `github/web8080`, a
 ### Phase 1 — Design spec ✅ DONE
 - [x] `BLUEPRINT.md` written (>10,000 words: 14,740).
 - [x] Decision on stack (Python stdlib), deterministic core, SQLite ledger,
-      event-driven detection, MIN_REROUTE_DELTA, ack timers, 3 demo scenarios.
+      event-driven detection, MIN_REROUTE_DELTA, ack timers, 3 scripted scenarios.
 
-**Phase 1 notes / decisions:** See section 1. The interviewer provided detailed
-feedback (channel prefs as priority list, MIN_REROUTE_DELTA, don't over-build
-infrastructure, demo structure). All incorporated.
+**Phase 1 notes / decisions:** See section 1. Detailed design feedback (channel
+prefs as priority list, MIN_REROUTE_DELTA, don't over-build infrastructure,
+scenario structure) was incorporated.
 
 ### Phase 2 — Core modules ✅ DONE
 - [x] `alert_routing/models.py` — dataclasses: Alert, Stakeholder, ChannelPref,
@@ -124,7 +124,7 @@ infrastructure, demo structure). All incorporated.
 - `delivered_sids` = DELIVERED/ESCALATED only; `notified_sids` includes INTENT
   (for I1/I2 no-second-notification guard).
 - R4c ack-timeout is evaluated at control points (`evaluate_ack_timeout()`);
-  a background thread is intentionally NOT in the core to keep the demo
+  a background thread is intentionally NOT in the core to keep the walkthrough
   deterministic. If real timers are needed later, wrap in a daemon thread
   calling `router.evaluate_ack_timeout()`.
 - **Known minor wart (fix in Phase 5):** `router._start_send_for` imports
@@ -133,7 +133,7 @@ infrastructure, demo structure). All incorporated.
 ### Phase 3 — Optional HTTP API ✅ DONE
 - [x] `alert_routing/server.py` — optional FastAPI `POST /alert`, `GET /alerts/{id}`, `GET /alerts/{id}/timeline`.
 - [x] Guarded import (`try: from fastapi import ...`) so core stays stdlib.
-- [x] NOT part of demo; README documents `pip install fastapi uvicorn` (optional).
+- [x] NOT part of the core; README documents `pip install fastapi uvicorn` (optional).
 
 **Phase 3 notes:** server builds a temp scenario JSON and reuses `run_scenario`
 — no duplicated logic. `app = build_app()` at module import creates the app;
@@ -181,7 +181,7 @@ if FastAPI is absent, `build_app()` returns None (module still imports cleanly).
       final recipient + message-as-sent.
 - [x] Run: `python -m unittest discover` → **OK (29 tests)**.
 
-**Phase 5 notes / BUGS FOUND & FIXED (record for interview defense):**
+**Phase 5 notes / BUGS FOUND & FIXED:**
 1. **Parallel-escalate-after-ack was unreachable.** `acknowledge()` originally
    set the plan straight to terminal `DELIVERED`, so events arriving after an
    ack (R3/R4b: "recipient offline after email already sent") were dropped.
@@ -199,8 +199,8 @@ if FastAPI is absent, `build_app()` returns None (module still imports cleanly).
    tie-broken routing on unknown domains.
 
 
-### Phase 6 — README + repo + demo video 🔄 IN PROGRESS
-- [x] `README.md` — run instructions, architecture, demo narrative, what's next.
+### Phase 6 — README + repo + walkthrough video 🔄 IN PROGRESS
+- [x] `README.md` — run instructions, architecture, project narrative, what's next.
 - [x] `LICENSE` — MIT (© 2026 Victor Ibhafidon).
 - [x] **Author + date headers on every script** — `# author: Victor Ibhafidon` /
       `# date: 2026-08-14` prepended to all 23 `.py` files (alert_routing/ + tests/).
@@ -214,8 +214,9 @@ if FastAPI is absent, `build_app()` returns None (module still imports cleanly).
       `make ui` target. Reuses `run_scenario_data`/`render_timeline` — no
       routing logic in the UI. Verified end-to-end via curl (all endpoints +
       static assets return 200; dispatches return correct JSON).
-- [ ] `gh repo create` under `github/web8080` (public); verify in logged-out window.
-- [ ] 3-minute demo video per the script in BLUEPRINT.md §14:
+- [x] `gh repo create` under `github/web8080` (public) — live at
+      `github.com/Web8080/alert-routing-agent`; verified in logged-out window.
+- [ ] 3-minute walkthrough video per the script in BLUEPRINT.md §14:
       0:00–0:20 architecture → 0:20–1:20 scenario 1 (offline→reroute) →
       1:20–2:10 scenario 2 (channel fail→fallback) → 2:10–2:45 scenario 3
       (senior appears, lower qualification → no downgrade) → 2:45–3:00 tests +
@@ -241,8 +242,8 @@ if FastAPI is absent, `build_app()` returns None (module still imports cleanly).
   - Bottom: **POLICY MATRIX** R1–R6 chips that light when a rule fires.
   - Header: ☰ registry modal (read-only stakeholders, read from
     `/api/registry`).
-- **Design principle (from review):** the UI is a *thin operator console for the
-  demo*, not a SaaS product. Its only job is to make five things undeniable:
+- **Design principle (from review):** the UI is a *thin operator console*, not a
+  SaaS product. Its only job is to make five things undeniable:
   who was selected, why, what changed mid-flight, why the agent
   rerouted/escalated/continued, and how we know nothing was duplicated or lost.
 - **Custom-dispatch nicety:** unknown domains now default the duty manager to
@@ -317,7 +318,7 @@ if FastAPI is absent, `build_app()` returns None (module still imports cleanly).
 - [x] **`roster.py` + `roster.json`** — on-call shifts (date range, primary +
       backups). `effective_on_call()` = union of primaries/backups on shifts
       covering the day; falls back to static registry `on_call` flags when no
-      shift covers the day (backward compatible with the demo).
+      shift covers the day (backward compatible with the plain registry).
 - [x] **Roster-aware dispatch** — `ui.py` `_on_call_overrides()` hands the
       effective on-call map to every dispatch (scenario + custom).
 - [x] **Registry/roster JSON API** — `POST /api/registry` (upsert),
@@ -339,7 +340,7 @@ if FastAPI is absent, `build_app()` returns None (module still imports cleanly).
   on call *today*, but the invariant tests still own the guarantees — the roster
   never changes rank ordering, only the gating set.
 - Roster semantics kept intentionally small (flat date-range shifts, no
-  recurrence/ical yet) — that is the future-work item, not the demo's job.
+  recurrence/ical yet) — that is the future-work item, not this phase's job.
 - Registry edits are validated through the existing `parse_stakeholder` /
   `validate_shift` paths, so a corrupt entry fails fast with a named error
   (E19 preserved).
@@ -348,7 +349,7 @@ if FastAPI is absent, `build_app()` returns None (module still imports cleanly).
 - [x] **Design first** — BLUEPRINT §22 "AI / Agentic Layer — Design (two-lane
       architecture)": deterministic routing kernel (Lane 1) + advisory AI (Lane 2)
       that is *structurally incapable* of routing; do-not-add table; eval plan
-      (retrieval recall@k + safety gate); demo story.
+      (retrieval recall@k + safety gate); product story.
 - [x] **`agents.py`** — three read-only agents run AFTER the final decision:
       `TriageAgent` (runbook + incident-KB retrieval → strict-JSON brief),
       `CommsAgent` (status draft), `PostmortemAgent` (incident summary).
@@ -376,7 +377,7 @@ if FastAPI is absent, `build_app()` returns None (module still imports cleanly).
 - [x] **Live-verified** — real Anthropic run returns `mode=ai, source=ai` with
       runbook + similar incidents; keyless fallback stays fully deterministic.
 
-### Phase 10 — Simultaneous evaluation + sharper demo domains ✅ DONE
+### Phase 10 — Simultaneous evaluation + new scenario domains ✅ DONE
 
 - [x] **One window, one decision (`R2B`)** — `decide_batch()` folds every change
       queued before a control point into a SINGLE verdict. A recipient going
@@ -425,7 +426,7 @@ if FastAPI is absent, `build_app()` returns None (module still imports cleanly).
 7. **Route built once, cursor moves** — re-route stays within snapshot order.
 8. **Channels stubbed** but faithful to real semantics; real adapters are
    drop-in behind `BaseAdapter`.
-9. **Ack timers at control points, not threads** (determinism for demo/tests).
+9. **Ack timers at control points, not threads** (determinism for walkthroughs/tests).
 
 ---
 
@@ -463,7 +464,7 @@ Alert_routing/
 │   ├── agents.py            incidents.py      ✅ (§22 agentic layer)
 │   └── static/              (index.html/css/js/favicon — built, dark console)
 ├── incidents/                          ✅ (seeded triage KB)
-├── tests/                            ✅ 101 tests
+├── tests/                            ✅ 106 tests
 ├── .github/workflows/ci.yml          ✅ (unit tests + cross-seed determinism)
 └── Dockerfile                        ✅
 ```
@@ -480,16 +481,14 @@ in the "Build status" table.** As of this update:
    ROADMAP/BLUEPRINT §21).
 1b. **Agentic layer is DONE (Phase 9)** — two-lane AI (§22): read-only triage/
    comms/postmortem agents + supervisor + safety gate, `incidents/` KB,
-   dashboard triage rendering, 101 tests, docs in line (README/TESTING/
-   ROADMAP/BLUEPRINT §22/INTERVIEW_GUIDE).
-1c. **Simultaneous evaluation + sharper demo is DONE (Phase 10)** — `R2B`
-   batch fold (one decision window ⇒ one verdict), 7 demo scenarios across
+    dashboard triage rendering, 106 tests, docs in line (README/TESTING/
+    ROADMAP/BLUEPRINT §22).
+1c. **Simultaneous evaluation + new scenario domains is DONE (Phase 10)** — `R2B`
+   batch fold (one decision window ⇒ one verdict), 7 scripted scenarios across
    inventory / contracts / sla / anomaly domains, 6 runbooks + 6 incidents,
-   6-feed sensors, 101 tests.
-2. **Create the public repo** under `github/web8080` via `gh` (public), push,
-   verify in a logged-out browser (the brief requires this; it can't be checked
-   from inside the sandbox).
-3. **Record/upload the ≤3-min demo video** (script in BLUEPRINT.md §14), reply
-   to the email with repo + video links.
+   6-feed sensors, 106 tests.
+2. **Public repo is live** at `github.com/Web8080/alert-routing-agent` (CI
+   green, Render-deployed dashboard).
+3. **Record/upload the ≤3-min walkthrough video** (script in BLUEPRINT.md §14).
 4. **REMINDER (self-trigger):** after each phase, update THIS file before
-   starting the next phase. Also append to `INTERVIEW_GUIDE.md` §6 living log.
+   starting the next phase.

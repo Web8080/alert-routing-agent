@@ -2,13 +2,13 @@
 # date: 2026-08-15
 """Post-decision AI prose layer (optional, Anthropic via stdlib urllib).
 
-Design contract (defend in the interview):
+Design contract (defensible in code review):
   * The ROUTING DECISION is always deterministic. AI is invoked only AFTER the
     decision engine has chosen a recipient, to write human-friendly prose for
     the notification body and to summarize an incident for a timeline/runbook.
     AI output can never change who is notified or how.
   * Everything here is opt-in and fails safe: with no key configured, or on any
-    network/API error, we return the deterministic template. Tests and the demo
+    network/API error, we return the deterministic template. Tests and the walkthrough
     therefore always run the same way (P5 determinism is untouched).
   * The prompt is built ONLY from validated internal fields — raw alert context
     is treated as untrusted data (prompt-injection hardening).

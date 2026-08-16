@@ -17,7 +17,7 @@ SCENARIOS = ROOT / "scenarios"
 
 def make_router(ledger_path=":memory:", config=None, presence=None, clock=None,
                 online_offline=None) -> Router:
-    """Router with defaults matching the demo seed (senior/offline candidates offline).
+    """Router with defaults matching the seeded registry (senior/offline candidates offline).
 
     Tests are HERMETIC: the dev `.env` may enable live delivery / AI, but the
     suite must never hit the network. We force the deterministic stub adapters

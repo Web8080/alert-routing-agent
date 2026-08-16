@@ -10,5 +10,5 @@ COPY registry.json scenarios/ scenarios/
 
 RUN python -m pip install --no-cache-dir -e . --quiet
 
-# Demo / test entry points
+# Entry points — tests, CLI, UI
 CMD ["python", "-m", "unittest", "discover"]

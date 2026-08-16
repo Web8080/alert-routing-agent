@@ -19,18 +19,18 @@ here are *correctness guarantees*, and determinism is what makes them provable.
 - [The problem](#the-problem)
 - [The guarantees](#the-guarantees-enforced-physically-not-by-convention)
 - [Architecture](#architecture)
-  - [Decision rules](#decision-rules-the-part-to-defend)
+  - [Decision rules](#decision-rules)
 - [Quick start](#quick-start)
   - [Run it anywhere](#run-it-anywhere-optional)
   - [Zero-dependency web UI](#zero-dependency-web-ui-stdlib-only--no-install-needed)
   - [Optional HTTP API](#optional-http-api)
-- [Scenario walkthrough](#scenario-walkthrough-what-the-demo-shows)
+- [Scenario walkthrough](#scenario-walkthrough)
 - [Repository layout](#repository-layout)
 - [Design decisions & tradeoffs](#design-decisions--tradeoffs-short-version)
 - [Live delivery + AI](#live-delivery--ai-opt-in-env-gated)
 - [What I'd do next](#what-id-do-next-with-more-time)
-  - [Would an AI chat be wise to add later?](#would-an-ai-chat-be-wise-to-add-later-asked-in-prep)
-  - [Why not Kafka in the core?](#why-not-kafka-in-the-core-asked-in-prep)
+  - [Would an AI chat be wise to add later?](#would-an-ai-chat-be-wise-to-add-later)
+  - [Why not Kafka in the core?](#why-not-kafka-in-the-core)
 - [Related docs](#related-docs)
 - [License](#license)
 
@@ -68,7 +68,7 @@ alert event ──▶ ROUTER (the agent)
                   └─ TIMELINE    renders decision_log as an incident timeline
 ```
 
-### Decision rules (the part to defend)
+### Decision rules
 
 - **R1** — channel failed → retry the **same recipient** on their next preferred
   channel (transport ≠ recipient problem).
@@ -111,7 +111,7 @@ python3 -m alert_routing.cli scenarios/scenario_6_sla_breach_ack_timeout.json
 # 7. MEDIUM anomaly score never auto-escalates (severity gate on the new domain)
 python3 -m alert_routing.cli scenarios/scenario_7_anomaly_score_medium.json
 
-# Full test suite (101 tests: unit + scenario + invariant + agentic-layer)
+# Full test suite (106 tests: unit + scenario + invariant + agentic-layer)
 python3 -m unittest discover
 ```
 
@@ -141,7 +141,7 @@ re-render the timeline for any alert.
 ### Zero-dependency web UI (stdlib only — no install needed)
 
 A dark ops-console dashboard that makes the agent's decision-making *visible*
-for the demo. It reuses the exact same router code path as the CLI — the UI
+in the console. It reuses the exact same router code path as the CLI — the UI
 contains zero routing logic.
 
 ```bash
@@ -181,7 +181,7 @@ front-end contains zero routing logic.
 
 ### Optional HTTP API
 
-The demo does not need this. If you want the API surface:
+The core does not need this. If you want the API surface:
 
 ```bash
 pip install fastapi uvicorn
@@ -191,7 +191,7 @@ curl -X POST http://127.0.0.1:8000/alert \
   -d '{"metric":"stock_level","value":12,"threshold":20,"severity":"HIGH","domain":"inventory","context":{"warehouse":"WH-4"}}'
 ```
 
-## Scenario walkthrough (what the demo shows)
+## Scenario walkthrough
 
 | Scenario | What happens | Policy |
 |---|---|---|
@@ -233,19 +233,18 @@ alert_routing/
   ui.py           zero-dependency web dashboard (stdlib http.server)
   static/         index.html + style.css + app.js + favicon.svg (dark console)
   server.py       optional FastAPI (never imported by core)
-scenarios/        the 7 demo scenario JSONs
+scenarios/        the 7 scripted scenario JSONs
 scenarios/proposed/  scenarios adopted by the invariant suite (opt-in)
 runbooks/         runbook corpus (6 md, keyword-scored)
 incidents/        seeded past-incident KB (6, retrieval for the triage brief)
 registry.json     stakeholder seed (9 people, overlapping expertise)
 roster.json       on-call shifts (primary + backups per week)
-tests/            unit + scenario + invariant + agentic-layer tests (101)
+tests/            unit + scenario + invariant + agentic-layer tests (106)
 ```
 
 ## Design decisions & tradeoffs (short version)
 
-Full defense in [`BLUEPRINT.md`](BLUEPRINT.md) §12 and in
-[`INTERVIEW_GUIDE.md`](INTERVIEW_GUIDE.md) §3–§7.
+Full defense in [`BLUEPRINT.md`](BLUEPRINT.md) §12.
 
 1. **Deterministic policy engine, not an LLM** — the constraints are correctness
    properties; an LLM can't prove them and adds nondeterminism to paths that
@@ -266,7 +265,7 @@ Full defense in [`BLUEPRINT.md`](BLUEPRINT.md) §12 and in
 
 ## Live delivery + AI (opt-in, env-gated)
 
-Everything below is **off by default** — the demo, tests, and determinism checks
+Everything below is **off by default** — the walkthrough, tests, and determinism checks
 never depend on it. Set `.env` (copy from `.env.example`, never commit it) to
 turn each piece on.
 
@@ -307,7 +306,7 @@ and a **postmortem draft**. The supervisor enforces a budget and a per-agent
 deterministic fallback, and a **safety gate** re-checks the AI brief so it can
 never name a stakeholder the deterministic kernel did not deliver to. Toggle it
 with the **AI triage brief** switch in the dashboard, or set `ALERT_AI_API_KEY`
-to zero for a fully deterministic demo. Design + evals live in
+to zero for a fully deterministic run. Design + evals live in
 [`BLUEPRINT.md`](BLUEPRINT.md) §22.
 
 **Live trigger — metrics feed:**
@@ -349,7 +348,7 @@ availability change). Adopted scenarios land in `scenarios/proposed/`.
   scoring + `incidents/` similarity feeding the triage brief (§22). The next step
   is embeddings + a reranker, still strictly post-decision and still read-only.
 
-### Would an AI chat be wise to add later? (asked in prep)
+### Would an AI chat be wise to add later?
 
 Yes — but **as the product's interface layer, not as the router**. A chat
 assistant that can only *explain* the decision log, ledger and timeline is
@@ -357,10 +356,10 @@ read-only and therefore cannot break the guarantees; it's the natural console
 companion for the same on-call user. The seam already exists: prose is injected
 from the entry point, so a chat endpoint would call the same read-only views.
 What it must never do is participate in routing — the deterministic core stays
-untouched. If asked in the interview, the answer is: "AI as the explainer, not
-the decider; same contract as the 'why you' line."
+untouched. AI is the explainer, not the decider — same contract as the "why you"
+line.
 
-### Why not Kafka in the core? (asked in prep)
+### Why not Kafka in the core?
 
 Kafka buys three things this system already provides more cheaply:
 1. **Durability/ordering** — the ledger gives durable, ordered, idempotent
@@ -376,9 +375,8 @@ violate the brief's "small that genuinely works beats large that does not".
 
 ## Related docs
 
-- [`BLUEPRINT.md`](BLUEPRINT.md) — full engineering spec (15,247 words): data model, DDL, policy matrix, edge cases, test plan, demo script, §21 as-built addendum.
+- [`BLUEPRINT.md`](BLUEPRINT.md) — full engineering spec (15,247 words): data model, DDL, policy matrix, edge cases, test plan, walkthrough script, §21 as-built addendum.
 - [`TESTING.md`](TESTING.md) — step-by-step verification guide: how to prove each of the five guarantees (no alert loss, no duplicates, no double-query, no downgrade, determinism).
-- [`INTERVIEW_GUIDE.md`](INTERVIEW_GUIDE.md) — edge cases, defendable decisions, likely interviewer Q&A, phase-by-phase lessons learned, cheat sheet.
 - [`ROADMAP.md`](ROADMAP.md) — build status + handoff protocol for future sessions.
 
 ## License

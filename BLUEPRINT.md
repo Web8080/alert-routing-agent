@@ -25,7 +25,7 @@
 11. [Edge Cases](#11-edge-cases)
 12. [Tradeoffs & Defended Decisions](#12-tradeoffs--defended-decisions)
 13. [Test Plan](#13-test-plan)
-14. [Demo Script & Scenarios](#14-demo-script--scenarios)
+14. [Walkthrough Script & Scenarios](#14-walkthrough-script--scenarios)
 15. [Repository & Release Strategy](#15-repository--release-strategy)
 16. [Future Work](#16-future-work)
 17. [Appendix A — Stakeholder Seed Data](#appendix-a--stakeholder-seed-data)
@@ -49,7 +49,7 @@ The design deliberately chooses a **deterministic policy engine** over a free-fo
 
 The runtime is **Python 3, standard library only** for the core (dataclasses, `sqlite3`, `json`, `argparse`, `threading`). An optional FastAPI HTTP endpoint (`POST /alert`) is provided for API shape and is never imported by the core. State lives in two places: a **SQLite ledger** that is the source of truth for idempotency and deduplication (ACID, single-process, crash-safe), and a **JSON stakeholder registry** that is read-only at dispatch time. Presence and channel health changes are delivered as **events**, never discovered by polling. The decision policy, ranking formula, and ledger invariants are specified exactly in this document so that a fresh engineer can implement the system without further consultation.
 
-The remaining sections specify every component to a build-ready level of detail: the exact score formula, the SQLite schema, the dispatch state machine, the decision-policy matrix (rules R1–R6), the check-then-claim dedup protocol, the channel adapter interface, fifteen-plus enumerated edge cases with the rule that handles each, a full tradeoff analysis, a property-based test plan, a three-minute demo script with three scripted scenarios, and a release strategy that targets a public repository under the `github/web8080` account.
+The remaining sections specify every component to a build-ready level of detail: the exact score formula, the SQLite schema, the dispatch state machine, the decision-policy matrix (rules R1–R6), the check-then-claim dedup protocol, the channel adapter interface, fifteen-plus enumerated edge cases with the rule that handles each, a full tradeoff analysis, a property-based test plan, a three-minute walkthrough script with three scripted scenarios, and a release strategy that targets a public repository under the `github/web8080` account.
 
 **Success criteria.** The submission is judged against the original brief on four axes: (a) a working system that accepts an alert and routes it correctly; (b) correct mid-flight re-routing that preserves alert context and never duplicates; (c) a defensible walkthrough of every design decision; (d) deliverables that open — a public repository and a viewable three-minute video. Every section of this blueprint exists to make those four axes reproducible.
 
@@ -189,7 +189,7 @@ The system is organized as one process with seven cooperating components plus tw
 
 **Ledger.** A SQLite-backed append-only journal plus idempotency store. It is the source of truth for: every `INTENT`/`SENT`/`DELIVERED`/`FAILED`/`CANCELLED` per (alert_id, stakeholder, channel); the availability snapshot; the plan; and the decision log. All state transitions are single SQL transactions. Because it is SQLite, a crash leaves a consistent journal and the check-then-claim protocol (Section 9) survives restarts — the same ledger table a re-launched process reads to avoid double-sends.
 
-**Presence service (simulated).** Maintains per-stakeholder online/offline state and per-channel health, and emits the three event types. In production this would wrap Slack presence APIs, directory services, and channel health probes; in this system it is a scripted simulator driven by the demo scenarios and by unit tests. Its interface is `subscribe(callback)` / `emit(event)`, which is exactly the interface a real event bus (Kafka, Redis pub/sub) would expose in the scale-out design (Section 16).
+**Presence service (simulated).** Maintains per-stakeholder online/offline state and per-channel health, and emits the three event types. In production this would wrap Slack presence APIs, directory services, and channel health probes; in this system it is a scripted simulator driven by the scripted scenarios and by unit tests. Its interface is `subscribe(callback)` / `emit(event)`, which is exactly the interface a real event bus (Kafka, Redis pub/sub) would expose in the scale-out design (Section 16).
 
 **Channel adapters.** Uniform interface `send(notification) -> DeliveryReceipt` where `DeliveryReceipt ∈ {ACKED, FAILED(permanent), RETRIABLE}`. Email, Slack, and SMS adapters are stubbed but faithful to the real provider semantics that matter for routing decisions: *email is fire-and-forget fire* (an ACK means the mail server accepted it — the recipient may still be offline, and there is no retraction), *Slack and SMS are presence-aware* (an ACK implies the recipient is reachable), and *a channel in DOWN state returns RETRIABLE before any attempt* (so the planner can fall back without burning a send attempt).
 
@@ -219,7 +219,7 @@ Step 7 is the heartbeat of the whole system: it is where "mid-flight" changes ar
 
 ### 3.4 Process model
 
-Single process, one thread per active high-severity dispatch for the ack timer, otherwise sequential execution. The demo and tests run in-process with an injectable clock and an injectable event emitter, so scenarios are fully deterministic. The event emitter uses a synchronous callback channel (`emit` blocks until all subscribers return) in-process; the design note in Section 16 describes the drop-in replacement by a message broker. A synchronous in-process emitter is deliberately *not* a queue: it guarantees total ordering of events, which is essential to the determinism and replayability requirements (N1, N2). Any ordering assumption the decision policy makes is therefore sound.
+Single process, one thread per active high-severity dispatch for the ack timer, otherwise sequential execution. The walkthrough and tests run in-process with an injectable clock and an injectable event emitter, so scenarios are fully deterministic. The event emitter uses a synchronous callback channel (`emit` blocks until all subscribers return) in-process; the design note in Section 16 describes the drop-in replacement by a message broker. A synchronous in-process emitter is deliberately *not* a queue: it guarantees total ordering of events, which is essential to the determinism and replayability requirements (N1, N2). Any ordering assumption the decision policy makes is therefore sound.
 
 ---
 
@@ -376,7 +376,7 @@ CREATE TABLE IF NOT EXISTS decision_log (
 - **`decision_log.UNIQUE (alert_id, seq)`** guarantees a total order of decisions per alert and makes replay (N2) well-defined: replaying `decision_log` rows in `seq` order reproduces the exact decision sequence.
 - **`context` is stored as JSON text** and never parsed except for display and embedding into `Notification.body`. The core never interprets it, so it cannot be corrupted by routing logic.
 - **`channel_health` is stored as JSON** on the snapshot row because it is observed once, with the snapshot; it is *not* a live table that would tempt a later read (a re-query). Freezing channel health at snapshot time is intentional and is the mechanism that lets rule R1 (retry on fallback channel) use snapshot data instead of a live probe.
-- **WAL journal mode** is chosen for crash-safety with concurrent read/write within the single process; the checkpoint is opportunistic and harmless at demo scale. This is a minor detail included for completeness, not a scaling claim.
+- **WAL journal mode** is chosen for crash-safety with concurrent read/write within the single process; the checkpoint is opportunistic and harmless at this scale. This is a minor detail included for completeness, not a scaling claim.
 
 ### 4.4 Registry seed strategy
 
@@ -393,7 +393,7 @@ Eight stakeholders are seeded with deliberately overlapping expertise so that ra
 | STK-007 | Grace Lin | 1 | supply_chain 5 | yes | sms, email |
 | STK-008 | Hank Vogel | 4 | platform 4, logistics 3 | no  | slack, email |
 
-The overlaps matter for the demo: an `inventory` alert ranks Alice > Eve > Bob > Carol, so re-routing can be shown to follow the *snapshot* order rather than jumping to whoever happens to be online. David is the canonical "more senior stakeholder becomes available mid-flight" candidate, and Eve is the canonical "low-qualification person who is online but must NOT be chosen over a higher-qualified offline person." Appendix A gives the exact JSON.
+The overlaps matter for the routing: an `inventory` alert ranks Alice > Eve > Bob > Carol, so re-routing can be shown to follow the *snapshot* order rather than jumping to whoever happens to be online. David is the canonical "more senior stakeholder becomes available mid-flight" candidate, and Eve is the canonical "low-qualification person who is online but must NOT be chosen over a higher-qualified offline person." Appendix A gives the exact JSON.
 
 ---
 
@@ -419,7 +419,7 @@ gates(s) =
     AND any(s.channel_health[c] == OK for c in s.channels)
 ```
 
-The seniority weight is intentionally small (`+0.15` per tier). The intent is **tie-breaking among equal-domain experts**, not domain overriding: an inventory-5 IC outranks an inventory-2 platform lead (5×1.00=5.00 vs 2×1.60=3.20), which is the behavior the brief demands — seniority alone must not be able to leapfrog expertise. The exact constants are tunable and documented here so the demo walkthrough can defend them; what matters is the *shape*: expertise dominates, seniority breaks ties.
+The seniority weight is intentionally small (`+0.15` per tier). The intent is **tie-breaking among equal-domain experts**, not domain overriding: an inventory-5 IC outranks an inventory-2 platform lead (5×1.00=5.00 vs 2×1.60=3.20), which is the behavior the brief demands — seniority alone must not be able to leapfrog expertise. The exact constants are tunable and documented here so the walkthrough can defend them; what matters is the *shape*: expertise dominates, seniority breaks ties.
 
 ### 5.2 Worked example
 
@@ -440,10 +440,10 @@ Gated-out candidates are retained in the ranking *with their computed score and 
 2. **Bob Okafor (5.20)** — backup 1, channel `email`.
 3. **Carol Reyes (2.90)** — backup 2, channel `sms`.
 
-Critical details for the demo:
+Critical details for the scenario:
 
 - **Eve (3.45) is offline.** She outranks Bob and Carol on paper, but she is gated out. The route does *not* silently drop her: her snapshot row says `gated=1`, `online=0`, qualification 3.45. If she comes online mid-flight, the Change Detector receives `candidate.available(STK-005)`, looks up her *frozen* snapshot, sees qualification 3.45 > Alice's 6.50? No — it is lower than Alice's, so nothing happens (rule R4, Section 8). If instead David (0.00 domain match) comes online, he still loses to Eve on qualification. The point being demonstrated: **the re-planning decision is a pure comparison of frozen scores, never a re-evaluation.**
-- **David Miller (seniority 5) is the canonical "more senior stakeholder became available" case** only for alerts in his domain (`sla_contracts`, `platform`), where his qualification is actually high. For an `inventory` alert his domain score is 0, so even online he ranks below everyone — a deliberate seed choice that lets the demo show escalation *failing* the no-downgrade test as well as passing it.
+- **David Miller (seniority 5) is the canonical "more senior stakeholder became available" case** only for alerts in his domain (`sla_contracts`, `platform`), where his qualification is actually high. For an `inventory` alert his domain score is 0, so even online he ranks below everyone — a deliberate seed choice that lets the walkthrough show escalation *failing* the no-downgrade test as well as passing it.
 
 ### 5.3 Determinism
 
@@ -567,7 +567,7 @@ The cursor is persisted in the `plans` table? No — the cursor is derived from 
 
 ## 8. Decision Policy
 
-The Decision Policy is the heart of the system and the artifact the demo walks through line by line. It is a pure function:
+The Decision Policy is the heart of the system and the artifact the walkthrough walks through line by line. It is a pure function:
 
 ```
 Verdict decide(
@@ -643,7 +643,7 @@ Action: `IGNORE`. The event is logged (so the walkthrough can show the reasoning
 
 Rationale template: `"Stakeholder {sid} (qualification {q}) is now available, but {current} ({q_current}) is more qualified; not downgrading."`
 
-This rule is where the brief's third hard constraint is enforced at the *behavioral* level. Note it is also structurally redundant — the route cursor never moves backward and the route was qualification-ordered at planning — but the policy keeps it explicit because the demo wants to *show* a worse match arriving online and being refused. Defense in depth is cheap here and it makes the property directly observable.
+This rule is where the brief's third hard constraint is enforced at the *behavioral* level. Note it is also structurally redundant — the route cursor never moves backward and the route was qualification-ordered at planning — but the policy keeps it explicit because the walkthrough wants to *show* a worse match arriving online and being refused. Defense in depth is cheap here and it makes the property directly observable.
 
 ### 8.6 Rule R6 — All targets exhausted
 
@@ -672,10 +672,10 @@ The `rationale` on the *notification* is composed by the policy at send time fro
 
 ### 8.8 Ack-timer mechanics
 
-- The dispatcher arms a timer per high-severity dispatch (`HIGH`/`CRITICAL`) with `ack_window` (default 30s, injectable clock for tests/demo).
+- The dispatcher arms a timer per high-severity dispatch (`HIGH`/`CRITICAL`) with `ack_window` (default 30s, injectable clock for tests/walkthrough).
 - The timer fires only if the plan is still `SENDING` and the active notification is not `DELIVERED`.
 - On fire: policy invocation with `change=None, timer=True` → rule R4c → escalation or abort.
-- The timer is cancelled when the plan reaches a terminal state. The demo accelerates `ack_window` to make the timer observable within the 3-minute window.
+- The timer is cancelled when the plan reaches a terminal state. The walkthrough accelerates `ack_window` to make the timer observable within the 3-minute window.
 
 ---
 
@@ -737,17 +737,17 @@ class ChannelAdapter(Protocol):
     def health(self, endpoint: str) -> ChannelState: ...   # OK | DEGRADED | DOWN
 ```
 
-`DeliveryReceipt` is an enum: `ACKED`, `FAILED` (permanent — bad endpoint, hard reject), `RETRIABLE` (transient — provider down, timeout). The distinction matters to R1: a `FAILED` on the last channel exhausts the recipient's options and the policy reroutes (R2); a `RETRIABLE` could theoretically be retried with backoff, but the policy treats it like `FAILED` for the current step to keep the decision *deterministic* — retry-with-backoff is listed in Section 16 as future work, deliberately not in v1 because it introduces timer/ordering complexity that the 3-minute demo cannot afford to show honestly.
+`DeliveryReceipt` is an enum: `ACKED`, `FAILED` (permanent — bad endpoint, hard reject), `RETRIABLE` (transient — provider down, timeout). The distinction matters to R1: a `FAILED` on the last channel exhausts the recipient's options and the policy reroutes (R2); a `RETRIABLE` could theoretically be retried with backoff, but the policy treats it like `FAILED` for the current step to keep the decision *deterministic* — retry-with-backoff is listed in Section 16 as future work, deliberately not in v1 because it introduces timer/ordering complexity that the 3-minute walkthrough cannot afford to show honestly.
 
 ### 10.2 Stub semantics (faithful to real providers)
 
-The stubs exist so the demo is deterministic, but each is engineered to encode the real provider property that affects *routing decisions*:
+The stubs exist so the walkthrough is deterministic, but each is engineered to encode the real provider property that affects *routing decisions*:
 
 - **Email (fire-and-forget):** `send()` immediately returns `ACKED`. It *never* blocks and *never* fails on recipient presence, because SMTP semantics are exactly that: the message is accepted by a mail server and delivered later, whether or not the recipient is online. The system therefore knows email delivery is not recallable — which is the entire basis of rule R3. A debug hook can force `RETRIABLE` to simulate the mail server being down, exercising R1.
-- **Slack (presence-aware):** `send()` checks the presence service *through the event snapshot* (not a live call — the presence state was frozen at snapshot time). If the recipient's state at snapshot was offline, `send()` returns `RETRIABLE` immediately without consuming a budgeted attempt — because we already *know* the outcome, and burning a "real" attempt on a foregone failure would distort the demo's dedup story. If the channel health is `DOWN`, same `RETRIABLE`. Otherwise `ACKED`.
+- **Slack (presence-aware):** `send()` checks the presence service *through the event snapshot* (not a live call — the presence state was frozen at snapshot time). If the recipient's state at snapshot was offline, `send()` returns `RETRIABLE` immediately without consuming a budgeted attempt — because we already *know* the outcome, and burning a "real" attempt on a foregone failure would distort the dedup story. If the channel health is `DOWN`, same `RETRIABLE`. Otherwise `ACKED`.
 - **SMS:** same shape as Slack, with the same rules.
 
-Why the stubs "know" presence instead of being dumb fakes: the whole point of the system is that presence is a *snapshot*, and the demo must show a Slack send begin, then the recipient go offline, then the policy react. A dumb stub that always ACKs would make rule R2 unreachable in the demo. A stub that queries live presence would violate the no-double-query constraint. The stub reads the frozen snapshot — which is precisely the data the real adapters *would* have access to in production via a presence API, but which this system already captured at snapshot time. This is the cleanest honest way to simulate the mid-flight failure window.
+Why the stubs "know" presence instead of being dumb fakes: the whole point of the system is that presence is a *snapshot*, and the walkthrough must show a Slack send begin, then the recipient go offline, then the policy react. A dumb stub that always ACKs would make rule R2 unreachable in the walkthrough. A stub that queries live presence would violate the no-double-query constraint. The stub reads the frozen snapshot — which is precisely the data the real adapters *would* have access to in production via a presence API, but which this system already captured at snapshot time. This is the cleanest honest way to simulate the mid-flight failure window.
 
 ### 10.3 Injection & failure hooks
 
@@ -757,11 +757,11 @@ Every adapter accepts an `env`-style injector so scenarios can script failures d
 adapter.fail_next = [('RETRIABLE', 1), ('FAILED', 0)]   # queue of forced outcomes
 ```
 
-The scenario driver (Section 14) uses these hooks to script `channel.failed` events and adapter failures. The presence service exposes the same style for `presence.changed` and `candidate.available`. All injectors are *inputs to the demo driver*, not part of the production path — a reviewer can see the production path is clean and the scripting is external.
+The scenario driver (Section 14) uses these hooks to script `channel.failed` events and adapter failures. The presence service exposes the same style for `presence.changed` and `candidate.available`. All injectors are *inputs to the scenario driver*, not part of the production path — a reviewer can see the production path is clean and the scripting is external.
 
 ### 10.4 Drop-in path to real providers
 
-The interface above is deliberately the contract that real adapters would implement: `smtplib`/`SendGrid` for email, Slack Web API `chat.postMessage` for Slack, Twilio SMS API. None of that is in v1 (credentials + nondeterminism + the demo is 3 minutes). The section in README ("what's next") points at this interface as the seam. Nothing in the router, policy, or ledger knows an adapter is a stub.
+The interface above is deliberately the contract that real adapters would implement: `smtplib`/`SendGrid` for email, Slack Web API `chat.postMessage` for Slack, Twilio SMS API. None of that is in v1 (credentials + nondeterminism + the walkthrough is 3 minutes). The section in README ("what's next") points at this interface as the seam. Nothing in the router, policy, or ledger knows an adapter is a stub.
 
 ---
 
@@ -801,7 +801,7 @@ This section enumerates every edge case the design anticipates, the rule that ha
 
 **E16 — Stakeholder has no healthy channel at snapshot time.** → Gated out (gate 3, Section 5.1). They cannot be a primary; they may still be an escalation target only via the duty-manager exception. Rationale records why. Test: `test_no_healthy_channel_gates_out`.
 
-**E17 — Ack timer fires while an escalation is already in flight.** → The timer is cancelled when the plan leaves `SENDING` (Section 8.8). If it somehow fired late (race in the injectable-clock demo), the policy checks plan state first and returns `IGNORE` — the plan is already escalated, double-escalation would violate the cap. Test: `test_timer_no_double_escalation`.
+**E17 — Ack timer fires while an escalation is already in flight.** → The timer is cancelled when the plan leaves `SENDING` (Section 8.8). If it somehow fired late (race in the injectable-clock walkthrough), the policy checks plan state first and returns `IGNORE` — the plan is already escalated, double-escalation would violate the cap. Test: `test_timer_no_double_escalation`.
 
 **E18 — Severity is LOW/MEDIUM (no ack timer armed).** → No timer, no R4c path. Routing proceeds exactly as before; LOW alerts never auto-escalate on ack-timeout (they can still reroute/escalate on events). Rationale for skipping the timer is logged once. Test: `test_low_severity_no_timer`.
 
@@ -824,7 +824,7 @@ The brief explicitly rewards decisions that are made and can be defended. This s
 The most consequential decision. The "agent" framing in the brief might suggest an LLM orchestrator calling tools. We chose a **deterministic, rule-based policy engine** as the routing core.
 
 - **Cost:** the system cannot free-form reason about novel situations; anything outside the R1–R6 matrix raises `UnhandledSituationError` and must be added as a rule. It also looks less "AI" on the surface.
-- **Why it wins here:** the four hard constraints (no dup, no double-query, no downgrade, context preservation) are *correctness properties*. An LLM cannot prove them. Every reroute decision has a right answer determined by the snapshot, the route, and the ledger — there is no judgment call an LLM would improve. An LLM in the hot path would also be nondeterministic (sampling temperature, prompt drift), which would make the demo unreplayable and the invariants untestable. Determinism is a *feature the brief demands*: "must not" language requires guarantees, and guarantees require determinism.
+- **Why it wins here:** the four hard constraints (no dup, no double-query, no downgrade, context preservation) are *correctness properties*. An LLM cannot prove them. Every reroute decision has a right answer determined by the snapshot, the route, and the ledger — there is no judgment call an LLM would improve. An LLM in the hot path would also be nondeterministic (sampling temperature, prompt drift), which would make the walkthrough unreplayable and the invariants untestable. Determinism is a *feature the brief demands*: "must not" language requires guarantees, and guarantees require determinism.
 - **What would change it:** if the task were *summarizing* incidents or *drafting* rationale prose for humans where factual correctness of routing was secondary, an LLM would win. We have deliberately scoped it to prose-only in Section 16.
 
 ### 12.2 Qualification-first ranking (availability as a gate, not a key)
@@ -855,20 +855,20 @@ The most consequential decision. The "agent" framing in the brief might suggest 
 
 ### 12.6 SQLite ledger over an in-memory store or Redis
 
-- **Cost:** single-process writes are serialized by SQLite's locking; at thousands of alerts/second this becomes a bottleneck. The demo does not approach that.
-- **Why it wins:** ACID transactions are the *enforcement mechanism* for the dedup claim protocol and the terminal-state invariant. An in-memory dict is faster but crash-volatile (a restart could replay a send → duplicate). Redis gives durability but requires a server, credentials, and a story for the demo. SQLite is one file, stdlib-backed, crash-safe, and the exact same `UNIQUE` constraints work when the scale-out design swaps the store (Section 16). Zero-dependency runtime (N3) is preserved.
+- **Cost:** single-process writes are serialized by SQLite's locking; at thousands of alerts/second this becomes a bottleneck. The walkthrough does not approach that.
+- **Why it wins:** ACID transactions are the *enforcement mechanism* for the dedup claim protocol and the terminal-state invariant. An in-memory dict is faster but crash-volatile (a restart could replay a send → duplicate). Redis gives durability but requires a server, credentials, and a story for the walkthrough. SQLite is one file, stdlib-backed, crash-safe, and the exact same `UNIQUE` constraints work when the scale-out design swaps the store (Section 16). Zero-dependency runtime (N3) is preserved.
 - **What would change it:** multi-process deployment or >1k alerts/s → a real DB/Redis with the same schema constraints; the protocol doesn't change, only the storage.
 
 ### 12.7 Event-driven change detection over polling
 
-- **Cost:** the system is blind to changes that produce no event (e.g. a presence service that silently stops emitting). We accept a *monitoring* gap (the presence simulator is the event source; if it dies, the demo dies loudly) in exchange for determinism.
+- **Cost:** the system is blind to changes that produce no event (e.g. a presence service that silently stops emitting). We accept a *monitoring* gap (the presence simulator is the event source; if it dies, the walkthrough dies loudly) in exchange for determinism.
 - **Why it wins:** polling is banned by the no-double-query constraint, full stop. Events also give us the *causal structure* the decision policy needs: an event carries a before/after, which is exactly the diff the policy consumes. A polled read gives only an "after," forcing the policy to guess what changed.
 - **What would change it:** a real event bus with at-least-once delivery would add replay (E14 already handles it) and ordering guarantees (we use the in-process total order today; a broker needs a partition key per alert — documented in Section 16).
 
 ### 12.8 Stubbed channels over real provider integration
 
-- **Cost:** no real email/Slack/SMS is sent; a skeptical reviewer may wonder if the demo is "real."
-- **Why it wins:** (a) the demo must be deterministic and offline-safe; real providers add credentials, rate limits, and network nondeterminism that would make the 3-minute walkthrough unrepeatable; (b) the *routing logic* — which is the entire point of the task — is fully exercised by the stubs because the adapters are behind an interface and the logic never inspects their internals; (c) provider APIs are a solved integration problem, not the engineering challenge under evaluation. The interface (Section 10.1) is the drop-in seam.
+- **Cost:** no real email/Slack/SMS is sent; a skeptical reviewer may wonder if the system is "real."
+- **Why it wins:** (a) the walkthrough must be deterministic and offline-safe; real providers add credentials, rate limits, and network nondeterminism that would make the 3-minute walkthrough unrepeatable; (b) the *routing logic* — which is the entire point of the task — is fully exercised by the stubs because the adapters are behind an interface and the logic never inspects their internals; (c) provider APIs are a solved integration problem, not the engineering challenge under evaluation. The interface (Section 10.1) is the drop-in seam.
 - **What would change it:** a submission where the deliverable was "the notification actually goes out." Here the deliverable is the routing decision, so stubs are the correct fidelity/effort trade.
 
 ### 12.9 Immutable plan, mutable cursor
@@ -891,7 +891,7 @@ The most consequential decision. The "agent" framing in the brief might suggest 
 
 ### 13.1 Strategy
 
-The system is deterministic and pure-in-the-hot-path, so testing is exhaustive rather than probabilistic. Three layers: **unit** (pure functions), **scenario** (event sequences through the router), and **property** (invariants asserted after arbitrary event sequences). The property layer is the one that proves the brief's constraints, so it is the layer the demo opens with.
+The system is deterministic and pure-in-the-hot-path, so testing is exhaustive rather than probabilistic. Three layers: **unit** (pure functions), **scenario** (event sequences through the router), and **property** (invariants asserted after arbitrary event sequences). The property layer is the one that proves the brief's constraints, so it is the layer the walkthrough opens with.
 
 ### 13.2 Unit tests
 
@@ -941,17 +941,17 @@ P3 is the adversarial one: it actively hunts for the bug the brief cares most ab
 
 ### 13.5 Test runner
 
-Stdlib `unittest` with a `make test` shim; no third-party test framework. Tests run headless, offline, under 60s total. The demo opens by running the suite (Section 14.4) so the video proves green before showing the walkthrough.
+Stdlib `unittest` with a `make test` shim; no third-party test framework. Tests run headless, offline, under 60s total. The walkthrough opens by running the suite (Section 14.4) so the video proves green before showing the walkthrough.
 
 ---
 
 ---
 
-## 14. Demo Script & Scenarios
+## 14. Walkthrough Script & Scenarios
 
 ### 14.1 Video constraints
 
-Maximum 3 minutes. The brief: "Videos longer than three minutes are watched for three minutes only." So the demo opens with the strongest signal (a green test suite proving the invariants), then three scripted scenarios, then one screen of "what's next." No logos, no intro animations, no production value — the brief says production value counts for nothing. Narration is the walkthrough; the screen shows real terminal output.
+Maximum 3 minutes. The brief: "Videos longer than three minutes are watched for three minutes only." So the walkthrough opens with the strongest signal (a green test suite proving the invariants), then three scripted scenarios, then one screen of "what's next." No logos, no intro animations, no production value — the brief says production value counts for nothing. Narration is the walkthrough; the screen shows real terminal output.
 
 ### 14.2 Scenario A — Recipient goes offline mid-flight (R2, abort + reroute)
 
@@ -986,7 +986,7 @@ t=1.0   candidate.available(david)               [simulated]
         -> 6.40 < 7.25? NO -> wait. This scenario needs David to *beat* Carol.
 ```
 
-Correction for the demo (deliberate seed design): to show a *successful* better-match escalation, the alert domain must favor David. Use `domain=platform`:
+Correction (deliberate seed design): to show a *successful* better-match escalation, the alert domain must favor David. Use `domain=platform`:
 
 ```
 t=0.0   alert: platform_health value=0.91 threshold=0.95 severity=CRITICAL domain=platform
@@ -1019,7 +1019,7 @@ t=1.0   summary: no reroute (recipient never changed), rationale names the fallb
 
 Narration points: transport failure is not a recipient problem (R1); the fallback channel came from the *snapshot*, not a live probe — this is the single-evaluation guarantee applied to channels too.
 
-### 14.5 Demo close (last ~30 seconds)
+### 14.5 Walkthrough close (last ~30 seconds)
 
 1. Run the property suite (`test_property_no_duplicate`, `test_property_no_downgrade`, `test_snapshot_single_eval`) — green.
 2. Show `decision_log` for Scenario A in full (each row: code, action, target, rationale) — the explainability artifact.
@@ -1049,7 +1049,7 @@ $ python -m alert_routing.router scenarios/scenario_a.json --clock simulated
 [summary] plan=DELIVERED decisions=2 notifications=1 unresolved=0
 ```
 
-This output is the demo's script and also the acceptance evidence: a reviewer can read it and check every constraint by eye.
+This output is the walkthrough's script and also the acceptance evidence: a reviewer can read it and check every constraint by eye.
 
 ---
 
@@ -1091,11 +1091,11 @@ alert_routing/
 
 - Created via `gh repo create alert-routing --public` under the `github/web8080` account (per direction), with `gh auth` confirmed first.
 - README must pass the logged-out-browser test: we verify `https://github.com/web8080/alert-routing` opens in a private/incognito window and the "run it" instructions work from a clean clone in a temp dir (`python -m alert_routing.router scenarios/scenario_a.json`).
-- The video (≤3 min) is uploaded unlisted and its "anyone with the link" permission is verified in a logged-out window before submission. Both links are checked before the email reply is sent — the brief is explicit that unopenable deliverables are scored as absent.
+- The walkthrough video (≤3 min) is uploaded unlisted and its "anyone with the link" permission is verified in a logged-out window before submission. Both links are checked before the email reply is sent — the brief is explicit that unopenable deliverables are scored as absent.
 
 ### 15.3 Reproducibility guarantee
 
-`README.md` includes: `python3 -m venv .venv && . .venv/bin/activate && python -m alert_routing.router scenarios/scenario_a.json`. No `pip install` beyond the venv itself; the optional HTTP server documents `pip install fastapi uvicorn` as an explicit, optional step. The demo does not depend on the HTTP server.
+`README.md` includes: `python3 -m venv .venv && . .venv/bin/activate && python -m alert_routing.router scenarios/scenario_a.json`. No `pip install` beyond the venv itself; the optional HTTP server documents `pip install fastapi uvicorn` as an explicit, optional step. The walkthrough does not depend on the HTTP server.
 
 ---
 
@@ -1147,7 +1147,7 @@ Honest, prioritized, and explicitly not in v1. This section answers "what would 
 }
 ```
 
-Seed rationale: three domains with ≥2 experts (inventory: Alice/Eve/Bob; sla_contracts: Carol/David; platform: David/Hank); one senior-offline candidate (David) for the better-match scenario; one junior-online candidate (Eve) for the no-downgrade negative control; one generic-supply-chain IC (Grace) to show domain routing to a specialist; no stakeholder has identical (expertise, seniority), so the tie-break path is exercised only in property tests, not the demo.
+Seed rationale: three domains with ≥2 experts (inventory: Alice/Eve/Bob; sla_contracts: Carol/David; platform: David/Hank); one senior-offline candidate (David) for the better-match scenario; one junior-online candidate (Eve) for the no-downgrade negative control; one generic-supply-chain IC (Grace) to show domain routing to a specialist; no stakeholder has identical (expertise, seniority), so the tie-break path is exercised only in property tests, not the walkthrough.
 
 ---
 
@@ -1280,11 +1280,11 @@ backward-compatible slice is now shipped:
 - Shifts are flat date ranges: `{id, start, end, primary, backups}`.
 - `effective_on_call(registry, shifts, day)` returns the union of primaries +
   backups across shifts covering the day; when **no** shift covers the day the
-  static registry `on_call` flags apply unchanged (the plain demo still works).
+  static registry `on_call` flags apply unchanged (the plain registry still works).
 - The UI computes the effective on-call map and hands it to every dispatch
   (`_on_call_overrides`), so dispatch gating is roster-aware.
 - Recurrence, iCal import, and PagerDuty-style schedules remain future work —
-  intentionally out of scope for the demo.
+  intentionally out of scope for the walkthrough.
 
 ### 21.3 Registry CRUD
 
@@ -1313,11 +1313,11 @@ alert_routing/
   changes.py    + decision.py    + router.py      + cli.py
   timeline.py   + ai.py          + runbooks.py    + agents.py   + incidents.py
   ui.py (+ static/)               server.py (optional FastAPI, never core)
-scenarios/  (3 demo scenarios + proposed/)   runbooks/   incidents/ (seeded KB)
-registry.json   roster.json   tests/ (88)   .github/workflows/ci.yml   Dockerfile
+scenarios/  (3 scripted scenarios + proposed/)   runbooks/   incidents/ (seeded KB)
+registry.json   roster.json   tests/ (106)   .github/workflows/ci.yml   Dockerfile
 ```
 
-README/TESTING/ROADMAP/INTERVIEW_GUIDE have been brought in line with this
+README/TESTING/ROADMAP have been brought in line with this
 as-built state.
 
 ---
@@ -1327,7 +1327,7 @@ as-built state.
 *Added 2026-08-15 as the senior-engineer design for "cracking the hard part
 with AI". This section specifies what we add and — equally important — what we
 deliberately never add. It is a design contract, not a promise to ship
-everything before the demo.*
+everything before the walkthrough.*
 
 ### 22.1 The argument (why the hard part *must* stay deterministic)
 
@@ -1363,7 +1363,7 @@ alert ─▶ RANKER ─▶ SNAPSHOTTER ─▶ PLANNER ─▶       alert + ledge
   kernel already recorded. Its output is advisory; it never feeds back into
   Lane 1.
 - Every agent has a **deterministic fallback** and a **token/time budget**, so
-  the demo and tests run identically with AI off (P5 untouched).
+  the walkthrough and tests run identically with AI off (P5 untouched).
 - The only optional dependency is the existing Anthropic call (stdlib
   `urllib`); no framework (LangGraph/CrewAI/AutoGen) — a 60-line supervisor
   loop with structured-JSON handoffs proves the same architecture with zero
@@ -1412,22 +1412,22 @@ Guards: per-agent **max_tokens**, a **wall-clock timeout**, and a **per-agent
 fallback** so one failing agent cannot fail the pipeline. The supervisor
 returns `{"mode": "ai"|"fallback", "agents": [{"name", "ok", "latency_ms"}],
 "triage": {...}, "comms": "...", "postmortem": "..."}` and records its own
-trace (agent names, ok/fail, latency) — an agent audit trail for the demo.
+trace (agent names, ok/fail, latency) — an agent audit trail for the walkthrough.
 
 ### 22.5 What we deliberately DO NOT add
 
 | Don't | Why |
 |---|---|
-| LLM in the routing/decision path | destroys P1–P5 and the whole defense; the interview question is precisely "why didn't AI pick the recipient" |
-| Autonomous remediation / write actions | OWASP A2 (excessive agency); write-path must be approval-gated, out of demo scope |
+| LLM in the routing/decision path | destroys P1–P5 and the whole defense; the obvious question is precisely "why didn't AI pick the recipient" |
+| Autonomous remediation / write actions | OWASP A2 (excessive agency); write-path must be approval-gated, out of walkthrough scope |
 | Multi-agent frameworks (LangGraph/CrewAI) | dependency + latency + cost; a stdlib supervisor proves the same design |
-| Fine-tuning | RAG adapts without it; costs, staleness, no demo value |
+| Fine-tuning | RAG adapts without it; costs, staleness, no walkthrough value |
 | AI "personality"/agents on the paging path | Replit failure mode |
 | AI chat with write access | stays a read-only explainer (README "would an AI chat be wise") |
 
 ### 22.6 Evals (make it stand out)
 
-Two judges, both deterministic and runnable in the demo:
+Two judges, both deterministic and runnable in the walkthrough:
 
 1. **Retrieval quality** — recall@k of runbook/incident retrieval against
    labeled test cases (no LLM; ~1s). "RAG works" is measured, not claimed.
@@ -1436,7 +1436,7 @@ Two judges, both deterministic and runnable in the demo:
    rejected for this alert, the supervisor flags it as a **defect** (logged,
    never silently accepted). The safety property is asserted, not assumed.
 
-### 22.7 Demo story
+### 22.7 Walkthrough story
 
 Same alert, two runs: run one without AI → deterministic trace; run two with
 AI → the *same* trace plus a triage brief (likely cause, first checks, runbook,

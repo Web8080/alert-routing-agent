@@ -12,7 +12,7 @@ and cheaply. Incidents are recorded AFTER a dispatch completes, never during.
                             "final_recipient", "resolution"}
 
 Similarity is a deterministic overlap score over metric/domain/severity (plus a
-context-key bonus), so the demo and tests are hermetic: no embeddings, no LLM.
+context-key bonus), so the walkthrough and tests are hermetic: no embeddings, no LLM.
 """
 
 from __future__ import annotations

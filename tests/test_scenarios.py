@@ -1,6 +1,6 @@
 # author: Victor Ibhafidon
 # date: 2026-08-14
-"""End-to-end scenario tests: run the 3 demo scenarios, assert terminal state,
+"""End-to-end scenario tests: run the scripted scenarios, assert terminal state,
 invariants (no duplicate, no downgrade, single-eval) and full context."""
 import unittest
 from unittest import mock

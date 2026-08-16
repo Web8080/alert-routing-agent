@@ -3,7 +3,7 @@
 # date: 2026-08-15
 """Live metrics feed — pushes real metric values into the routing API/CLI.
 
-Simulates a warehouse telemetry stream so the demo is driven by changing data,
+Simulates a warehouse telemetry stream so the walkthrough is driven by changing data,
 not just a one-shot script. Points at the FastAPI server by default:
 
     python -m alert_routing.metrics_feed --interval 2

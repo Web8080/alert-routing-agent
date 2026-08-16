@@ -1,6 +1,6 @@
 # author: Victor Ibhafidon
 # date: 2026-08-14
-"""Optional HTTP API (FastAPI). NOT part of the core, NOT required for the demo.
+"""Optional HTTP API (FastAPI). NOT part of the core.
 
 The core never imports this module. Install FastAPI/uvicorn only if you want the
 API surface:  pip install fastapi uvicorn

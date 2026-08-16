@@ -532,7 +532,7 @@ function paintRegistry(body, rows) {
     div.className = "stak";
     const chips = s.channels.map((c) =>
       '<span class="chip p' + c.priority + '">#' + c.priority + " " + escapeHtml(c.name) +
-      (c.webhook_missing ? '<span class="whint" title="no webhook in .env — demo stub delivery">*</span>' : "") +
+      (c.webhook_missing ? '<span class="whint" title="no webhook in .env — stub delivery">*</span>' : "") +
       "</span>"
     ).join("");
     const exp = Object.entries(s.expertise || {}).map(([d, v]) => d + " " + v + "/5").join(" · ");

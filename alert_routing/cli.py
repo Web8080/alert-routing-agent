@@ -103,7 +103,7 @@ def print_trace(router: Router) -> None:
 
 
 def main(argv: Optional[list[str]] = None) -> None:
-    parser = argparse.ArgumentParser(description="Alert routing agent demo")
+    parser = argparse.ArgumentParser(description="Alert routing agent")
     parser.add_argument("scenario", help="path to scenario JSON")
     parser.add_argument("--registry", default="registry.json")
     parser.add_argument("--ledger", default=None,

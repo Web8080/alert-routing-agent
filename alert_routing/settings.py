@@ -2,7 +2,7 @@
 # date: 2026-08-15
 """Runtime settings — env vars + a tiny .env loader (zero third-party deps).
 
-Everything here is OPTIONAL. The demo runs fully with nothing set (the channel
+Everything here is OPTIONAL. The agent runs fully with nothing set (the channel
 adapters fall back to their deterministic stubs). Set the delivery vars only to
 turn on REAL email/Slack delivery and the AI prose layer.
 
@@ -52,7 +52,7 @@ def smtp_enabled() -> bool:
     """Live SMTP needs a COMPLETE relay config: host + user + pass + from.
 
     A half-filled block (host only) must NOT silently turn on real delivery —
-    that is how a demo turns into 530 auth-error spam. Incomplete => stub.
+    that is how a misconfigured deploy turns into 530 auth-error spam. Incomplete => stub.
     """
     return bool(get("ALERT_SMTP_HOST")
                 and get("ALERT_SMTP_USER")

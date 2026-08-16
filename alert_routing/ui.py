@@ -5,7 +5,7 @@
 Serves a single-page dashboard from `alert_routing/static/` and exposes a tiny
 JSON API that reuses the exact same router code path as the CLI:
 
-    GET  /api/scenarios                → list of bundled demo scenarios
+    GET  /api/scenarios                → list of bundled scripted scenarios
     POST /api/dispatch                 → run a scenario (or a custom alert) and
                                          return trace + decisions + timeline
     GET  /api/registry                 → stakeholder roster (on-call effective today)
@@ -95,7 +95,7 @@ def _result_payload(router, alert_id: str) -> dict:
 def _ranking_payload(router) -> list[dict]:
     """Raw qualification ranking + availability + gating (what RANK shows).
 
-    Sorted by qualification descending (ties broken by id) so the demo table
+    Sorted by qualification descending (ties broken by id) so the ranking table
     matches the trace's RANK lines exactly. Gated candidates are retained —
     that's the 'qualified-but-unavailable' talking point."""
     rows = []
@@ -234,7 +234,7 @@ def _delete_stakeholder(registry_path: str, sid: str) -> None:
 def _stable_alert_id(alert: dict) -> str:
     """Deterministic id for a custom alert: SHA-1 of the canonicalized payload.
 
-    Distinct alerts get distinct ids (the demo's two incidents must not look like
+    Distinct alerts get distinct ids (two incidents must not look like
     the same alert), and identical alerts keep the same id across runs (P5).
     """
     import hashlib
