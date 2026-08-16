@@ -26,7 +26,8 @@ def make_router(ledger_path=":memory:", config=None, presence=None, clock=None,
     if presence is None:
         presence = Presence()
         presence.seed(online_offline or {"STK-003": False, "STK-006": False,
-                                         "STK-007": False})
+                                         "STK-007": False, "STK-010": False,
+                                         "STK-011": False})
     with mock.patch.object(settings, "smtp_enabled", return_value=False), \
          mock.patch.object(settings, "slack_enabled", return_value=False):
         return Router(REGISTRY, ledger_path, config=config, clock=clock or SimClock(),

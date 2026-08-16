@@ -7,13 +7,29 @@
     "threshold": 20,
     "severity": "MEDIUM",
     "domain": "inventory",
-    "context": {"warehouse": "WH-9", "sku": "ACME-204"}
+    "context": {
+      "warehouse": "WH-9",
+      "sku": "ACME-204"
+    }
   },
   "presence": {
-    "online": {"STK-003": false, "STK-006": false, "STK-007": false}
+    "online": {
+      "STK-010": false,
+      "STK-011": false,
+      "STK-003": false,
+      "STK-006": false,
+      "STK-007": false
+    }
   },
   "steps": [
-    {"op": "set_channel_health", "sid": "STK-001", "channel": "slack", "state": "DOWN"},
-    {"op": "ack"}
+    {
+      "op": "set_channel_health",
+      "sid": "STK-001",
+      "channel": "slack",
+      "state": "DOWN"
+    },
+    {
+      "op": "ack"
+    }
   ]
 }

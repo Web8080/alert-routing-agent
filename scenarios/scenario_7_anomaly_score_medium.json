@@ -1,0 +1,27 @@
+{
+  "name": "scenario_7_anomaly_score_medium",
+  "description": "A MEDIUM anomaly-score alert routes to Leo Park (Observability Engineer, anomaly 5, q 6.50) \u2014 the domain's only specialist. An ack timeout fires but is NOT armed for MEDIUM severity (R4c): the alert does not auto-escalate, Leo is the sole final recipient, and the plan stays DELIVERED. Shows the severity gate applying on the new anomaly domain.",
+  "alert": {
+    "metric": "anomaly_score",
+    "value": 0.97,
+    "threshold": 0.9,
+    "severity": "MEDIUM",
+    "domain": "anomaly",
+    "context": {
+      "service": "checkout",
+      "model": "isolation_forest",
+      "window": "15m"
+    }
+  },
+  "presence": {
+    "online": {
+      "STK-010": false,
+      "STK-011": false
+    }
+  },
+  "steps": [
+    {
+      "op": "ack_timeout"
+    }
+  ]
+}

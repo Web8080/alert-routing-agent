@@ -1,0 +1,13 @@
+{
+  "id": "inc_contract_CT-1042",
+  "metric": "contract_expiry",
+  "domain": "contracts",
+  "severity": "HIGH",
+  "value": 18,
+  "threshold": 30,
+  "context": {"contract": "CT-1042", "vendor": "Northwind"},
+  "plan_state": "DELIVERED",
+  "final_recipient": "Nina Osei",
+  "resolution": "Renewal intake opened with procurement; vendor confirmed the same-rate extension and the signature was captured two weeks before expiry. Verified against the contract_expiry runbook before closing.",
+  "recorded_at": "2026-08-02T09:40:00Z"
+}

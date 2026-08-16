@@ -55,6 +55,10 @@ _SCENARIO_META = [
     ("scenario_1_offline", "Recipient goes offline mid-flight  (R2 abort + reroute)"),
     ("scenario_2_channel_fail", "Preferred channel fails mid-flight  (R1 channel retry)"),
     ("scenario_3_no_downgrade", "Senior-but-less-qualified appears  (R5 no-downgrade)"),
+    ("scenario_4_simultaneous", "Offline + better candidate in one window  (R2B single hop)"),
+    ("scenario_5_contract_expiry", "Contract expiry routes to the new specialist  (contracts)"),
+    ("scenario_6_sla_breach_ack_timeout", "Critical SLA breach auto-escalates on ack timeout  (R4c)"),
+    ("scenario_7_anomaly_score_medium", "MEDIUM anomaly score never auto-escalates  (anomaly)"),
 ]
 
 _lock = threading.Lock()

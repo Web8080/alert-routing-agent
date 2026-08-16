@@ -1,0 +1,13 @@
+{
+  "id": "inc_anomaly_checkout_2026_08_11",
+  "metric": "anomaly_score",
+  "domain": "anomaly",
+  "severity": "MEDIUM",
+  "value": 0.94,
+  "threshold": 0.9,
+  "context": {"service": "checkout", "model": "isolation_forest", "window": "15m"},
+  "plan_state": "DELIVERED",
+  "final_recipient": "Leo Park",
+  "resolution": "Replayed the model: the spike traced to a replayed webhook storm from a partner, not checkout traffic. Marked noise and documented the feature window for the model owner.",
+  "recorded_at": "2026-08-11T19:30:00Z"
+}

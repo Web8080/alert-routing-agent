@@ -1,0 +1,23 @@
+{
+  "name": "scenario_5_contract_expiry",
+  "description": "A contract expiry alert in the contracts domain routes to Nina Osei (Contracts & Compliance Lead, q 7.25) \u2014 proving a newly added domain maps to its owner with zero changes to the routing rules. Elena (contracts 3, seniority 5) ranks lower (q 4.80) and stays backup.",
+  "alert": {
+    "metric": "contract_expiry",
+    "value": 12,
+    "threshold": 30,
+    "severity": "CRITICAL",
+    "domain": "contracts",
+    "context": {
+      "vendor": "Northwind",
+      "contract": "CT-1042",
+      "expires_utc": "2026-09-15"
+    }
+  },
+  "presence": {
+    "online": {
+      "STK-010": false,
+      "STK-011": false
+    }
+  },
+  "steps": []
+}

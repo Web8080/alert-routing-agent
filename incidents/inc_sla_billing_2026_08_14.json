@@ -1,0 +1,13 @@
+{
+  "id": "inc_sla_billing_2026_08_14",
+  "metric": "sla_response_time",
+  "domain": "sla",
+  "severity": "CRITICAL",
+  "value": 980,
+  "threshold": 500,
+  "context": {"service": "billing-api", "window": "p99"},
+  "plan_state": "ESCALATED",
+  "final_recipient": "Elena Ross",
+  "resolution": "p99 blew out after the billing-api deploy; Elena escalated in parallel per the sla_breach runbook, the owning team rolled back the release, and latency recovered within the hour.",
+  "recorded_at": "2026-08-14T15:05:00Z"
+}

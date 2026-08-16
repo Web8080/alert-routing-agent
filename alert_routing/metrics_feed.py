@@ -29,6 +29,15 @@ SENSORS = [
      "initial": -24.0, "slope": 0.9, "context": {"zone": "FREEZER-A"}},
     {"metric": "cpu_utilization", "domain": "compute", "threshold": 85.0,
      "initial": 40.0, "slope": 4.2, "context": {"host": "node-07"}},
+    {"metric": "contract_expiry", "domain": "contracts", "threshold": 30,
+     "initial": 60.0, "slope": -2.1, "direction": "below",
+     "context": {"vendor": "Northwind", "contract": "CT-1042"}},
+    {"metric": "sla_response_time", "domain": "sla", "threshold": 500.0,
+     "initial": 300.0, "slope": 18.0, "direction": "above",
+     "context": {"service": "billing-api", "window": "p99"}},
+    {"metric": "anomaly_score", "domain": "anomaly", "threshold": 0.9,
+     "initial": 0.2, "slope": 0.06, "direction": "above",
+     "context": {"service": "checkout", "model": "isolation_forest"}},
 ]
 
 
@@ -77,7 +86,11 @@ def main(argv: Optional[list[str]] = None) -> None:
         for _ in range(args.steps):
             for sensor in SENSORS:
                 value = sensor["initial"] + sensor["slope"] * t
-                if value <= sensor["threshold"] and not crossed[sensor["metric"]]:
+                if sensor.get("direction") == "above":
+                    breached = value >= sensor["threshold"]
+                else:
+                    breached = value <= sensor["threshold"]
+                if breached and not crossed[sensor["metric"]]:
                     post_alert(args.url, sensor, value)
                     crossed[sensor["metric"]] = True
             t += 1.0

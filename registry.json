@@ -21,8 +21,8 @@
       "expertise": {"inventory": 4, "logistics": 4},
       "on_call": true,
       "channels": [
-        {"name": "email", "priority": 1, "endpoint": "david@acme.dev"},
-        {"name": "slack", "priority": 2, "endpoint": "david.slack"}
+        {"name": "slack", "priority": 1, "endpoint": "david.slack"},
+        {"name": "email", "priority": 2, "endpoint": "david@acme.dev"}
       ]
     },
     {
@@ -30,10 +30,10 @@
       "name": "Elena Ross",
       "title": "Platform Lead",
       "seniority": 5,
-      "expertise": {"sla_contracts": 5, "platform": 5, "inventory": 2},
-      "on_call": false,
+      "expertise": {"sla": 5, "contracts": 3, "platform": 5, "inventory": 2},
+      "on_call": true,
       "channels": [
-        {"name": "email", "priority": 1, "endpoint": "elena@acme.dev"},
+        {"name": "email", "priority": 1, "endpoint": "victorweb88@protonmail.com"},
         {"name": "slack", "priority": 2, "endpoint": "elena.slack"},
         {"name": "sms", "priority": 3, "endpoint": "+1555-000-0003"}
       ]
@@ -46,7 +46,7 @@
       "expertise": {"logistics": 5, "inventory": 3},
       "on_call": true,
       "channels": [
-        {"name": "email", "priority": 1, "endpoint": "frank@acme.dev"},
+        {"name": "email", "priority": 1, "endpoint": "ria.armstead@gmail.com"},
         {"name": "sms", "priority": 2, "endpoint": "+1555-000-0004"}
       ]
     },
@@ -58,8 +58,8 @@
       "expertise": {"supply_chain": 5},
       "on_call": true,
       "channels": [
-        {"name": "sms", "priority": 1, "endpoint": "+1555-000-0005"},
-        {"name": "email", "priority": 2, "endpoint": "grace@acme.dev"}
+        {"name": "email", "priority": 1, "endpoint": "victorweb88@protonmail.com"},
+        {"name": "sms", "priority": 2, "endpoint": "+1555-000-0005"}
       ]
     },
     {
@@ -70,8 +70,8 @@
       "expertise": {"inventory": 5},
       "on_call": true,
       "channels": [
-        {"name": "slack", "priority": 1, "endpoint": "priya.slack"},
-        {"name": "email", "priority": 2, "endpoint": "priya@acme.dev"}
+        {"name": "email", "priority": 1, "endpoint": "ria.armstead@gmail.com"},
+        {"name": "slack", "priority": 2, "endpoint": "priya.slack"}
       ]
     },
     {
@@ -82,9 +82,95 @@
       "expertise": {"inventory": 5},
       "on_call": true,
       "channels": [
-        {"name": "slack", "priority": 1, "endpoint": "maya.slack"},
-        {"name": "email", "priority": 2, "endpoint": "maya@acme.dev"},
+        {"name": "email", "priority": 1, "endpoint": "ria.armstead@gmail.com"},
+        {"name": "slack", "priority": 2, "endpoint": "maya.slack"},
         {"name": "sms", "priority": 3, "endpoint": "+1555-000-0007"}
+      ]
+    },
+    {
+      "id": "STK-008",
+      "name": "Nina Osei",
+      "title": "Contracts & Compliance Lead",
+      "seniority": 4,
+      "expertise": {"contracts": 5, "sla": 3},
+      "on_call": true,
+      "channels": [
+        {"name": "email", "priority": 1, "endpoint": "ria.armstead@gmail.com"},
+        {"name": "slack", "priority": 2, "endpoint": "nina.slack"}
+      ]
+    },
+    {
+      "id": "STK-009",
+      "name": "Leo Park",
+      "title": "Observability Engineer",
+      "seniority": 3,
+      "expertise": {"anomaly": 5, "platform": 3},
+      "on_call": true,
+      "channels": [
+        {"name": "email", "priority": 1, "endpoint": "victorweb88@protonmail.com"},
+        {"name": "slack", "priority": 2, "endpoint": "leo.slack"}
+      ]
+    },
+    {
+      "id": "STK-010",
+      "name": "Victor Ibhafidon",
+      "title": "Senior Operations Engineer",
+      "seniority": 5,
+      "expertise": {"inventory": 5, "supply_chain": 5, "logistics": 5,
+                    "platform": 5, "sla": 5, "contracts": 5, "anomaly": 5},
+      "on_call": true,
+      "channels": [
+        {"name": "email", "priority": 1, "endpoint": "victorweb88@protonmail.com"},
+        {"name": "slack", "priority": 2, "endpoint": "victor.slack"}
+      ]
+    },
+    {
+      "id": "STK-011",
+      "name": "Ria Armstead",
+      "title": "Operations Lead",
+      "seniority": 5,
+      "expertise": {"inventory": 5, "supply_chain": 5, "logistics": 5,
+                    "platform": 5, "sla": 5, "contracts": 5, "anomaly": 5},
+      "on_call": true,
+      "channels": [
+        {"name": "email", "priority": 1, "endpoint": "ria.armstead@gmail.com"},
+        {"name": "slack", "priority": 2, "endpoint": "ria.slack"}
+      ]
+    },
+    {
+      "id": "STK-012",
+      "name": "Taylor Reed",
+      "title": "Finance Analyst",
+      "seniority": 2,
+      "expertise": {"contracts": 3},
+      "on_call": false,
+      "channels": [
+        {"name": "email", "priority": 1, "endpoint": "taylor.reed@acme.dev"},
+        {"name": "sms", "priority": 2, "endpoint": "+1555-000-0012"}
+      ]
+    },
+    {
+      "id": "STK-013",
+      "name": "Jordan Blake",
+      "title": "Security Engineer",
+      "seniority": 3,
+      "expertise": {"platform": 3, "anomaly": 2},
+      "on_call": false,
+      "channels": [
+        {"name": "email", "priority": 1, "endpoint": "jordan.blake@acme.dev"},
+        {"name": "slack", "priority": 2, "endpoint": "jordan.slack"}
+      ]
+    },
+    {
+      "id": "STK-014",
+      "name": "Alex Morgan",
+      "title": "Data Analyst",
+      "seniority": 2,
+      "expertise": {"inventory": 2, "anomaly": 2},
+      "on_call": false,
+      "channels": [
+        {"name": "email", "priority": 1, "endpoint": "alex.morgan@acme.dev"},
+        {"name": "sms", "priority": 2, "endpoint": "+1555-000-0014"}
       ]
     }
   ]

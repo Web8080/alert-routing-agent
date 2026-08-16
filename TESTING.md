@@ -24,31 +24,31 @@ packages (already installed in the throwaway venv `/tmp/ar_srv`):
 
 ---
 
-## 1. The full test suite (88 tests)
+## 1. The full test suite (101 tests)
 
 ```bash
 python3 -m unittest discover
 ```
 
-**Expect:** `Ran 88 tests ... OK`. The suite covers:
+**Expect:** `Ran 101 tests ... OK`. The suite covers:
 
 | File | What it proves |
 |---|---|
 | `test_ranker.py` | qualification ordering, determinism |
 | `test_snapshot.py` | **P3** — availability is evaluated exactly once per stakeholder (a second eval is a physical `IntegrityError`) |
 | `test_dedup.py` | **P2** — no duplicate to the same stakeholder; no primary+escalation to the same person |
-| `test_decision.py` | **P4/P5** — R1–R6 + `MIN_REROUTE_DELTA` gate; ack-timeout; duty-manager; cap |
-| `test_scenarios.py` | end-to-end runs of all 3 scenarios; invariant assertions after every event |
+| `test_decision.py` | **P4/P5** — R1–R6 + `MIN_REROUTE_DELTA` gate; ack-timeout; duty-manager; cap; **R2B batch fold** (offline + better candidate in one window ⇒ single hop) |
+| `test_scenarios.py` | end-to-end runs of all 7 scenarios; invariant assertions after every event |
 | `test_timeline.py` | incident timeline + message-as-sent rendering |
 | `test_roster.py` | on-call shifts: validation, covering days, effective on-call (roster vs static flags) |
 | `test_registry_edit.py` | registry CRUD: parse/save round-trip, upsert, on-call toggle, delete |
-| `test_runbooks.py` | deterministic runbook scorer + snippet feeding the incident summary |
+| `test_runbooks.py` | deterministic runbook scorer (domain-gated, severity only a tie-break) + snippet feeding the incident summary |
 | `test_live_delivery.py` | live SMTP/Slack adapters (env-gated) — honest RETRIABLE fallback, never a faked ACK |
 | `test_agents.py` | **§22** — incident-KB retrieval order + record round-trip; triage brief schema; supervisor audit trail + fallback determinism; **honesty**: mode/audit must reflect the brief's real source, never a silent AI; safety gate flags any stakeholder the kernel did not deliver to |
 
 ---
 
-## 2. The three demo scenarios (CLI)
+## 2. The seven demo scenarios (CLI)
 
 ```bash
 python3 -m alert_routing.cli scenarios/scenario_1_offline.json
@@ -61,13 +61,17 @@ python3 -m alert_routing.cli scenarios/scenario_1_offline.json
 | `scenario_1_offline.json` | Sarah (primary) goes **offline mid-flight**, send un-acked | `R2_ABORT_REROUTE ... rerouting to ... STK-002 (David)` | `DELIVERED` |
 | `scenario_2_channel_fail.json` | **Slack fails** mid-flight | `R1_RETRY ... retrying same recipient via email` (Sarah stays recipient) | `DELIVERED` |
 | `scenario_3_no_downgrade.json` | **Elena** (seniority 5) comes online — but q=3.20 vs Sarah q=6.50 | `R5_NO_DOWNGRADE ... not downgrading` | `DELIVERED` |
+| `scenario_4_simultaneous.json` | Sarah **offline** + Priya (q=7.25) **online in the same window** | exactly ONE `R2B_REROUTE_BEST` reroute, straight to `STK-006` — no intermediate hop to David | `DELIVERED` |
+| `scenario_5_contract_expiry.json` | Contract expiry, domain `contracts` | primary is `STK-008` (Nina, q=7.25); no decision rules fire | `DELIVERED` |
+| `scenario_6_sla_breach_ack_timeout.json` | Critical SLA breach, Elena never acks | `R4C_TIMEOUT ... escalating to STK-008` (level 1) | `ESCALATED` |
+| `scenario_7_anomaly_score_medium.json` | MEDIUM anomaly score, ack timeout fires | `R4C_LOW_SEVERITY` (never auto-escalates); sole recipient `STK-009` (Leo) | `DELIVERED` |
 
 Check the RANK lines too: Maya (q=8.00) and Priya (q=7.25) rank ABOVE Sarah but
 are GATED (offline at snapshot) — the "qualified-but-unavailable" talking point.
 Each run ends with an `INCIDENT TIMELINE` showing who was notified, why, and the
 exact message as sent.
 
-`make run1`, `make run2`, `make run3`, `make run-all` are shortcuts.
+`make run1` … `make run7`, `make run-all` are shortcuts.
 
 ---
 
@@ -257,8 +261,8 @@ module import never fails).
 
 ## 6. Expected "definition of done" checklist
 
-- [ ] `python3 -m unittest discover` → `OK` (88)
-- [ ] All 3 CLI scenarios end `plan=DELIVERED` with the correct R-rule fired
+- [ ] `python3 -m unittest discover` → `OK` (101)
+- [ ] All 7 CLI scenarios end `plan=DELIVERED` with the correct R-rule fired
 - [ ] `PYTHONHASHSEED` loop → identical outputs (P5)
 - [ ] File-ledger crash test re-renders the original timeline (P1)
 - [ ] UI Console: all panels + policy chips update during a live dispatch

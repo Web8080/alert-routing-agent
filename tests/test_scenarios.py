@@ -77,6 +77,60 @@ class TestScenarios(unittest.TestCase):
         t2 = [(l.kind, l.text) for l in r2.trace]
         self.assertEqual(t1, t2)  # deterministic replay
 
+    def test_scenario_4_simultaneous_fold(self):
+        router, aid = _run("scenario_4_simultaneous.json")
+        self.assertEqual(router.ledger.plan_state(aid), "DELIVERED")
+        rows = router.ledger.notifications_for(aid)
+        delivered = [n for n in rows if n["status"] == "DELIVERED"]
+        # One window, one hop: Sarah offline + Priya online fold into a single
+        # reroute STRAIGHT to Priya (STK-006) — never stranded on David.
+        self.assertEqual([n["stakeholder_id"] for n in delivered], ["STK-006"])
+        codes = [d["code"] for d in router.ledger.decision_log(aid)]
+        self.assertIn("R2B_REROUTE_BEST", codes)
+        reroutes = [d for d in router.ledger.decision_log(aid)
+                    if d["action"] == "REROUTE"]
+        self.assertEqual(len(reroutes), 1)  # no double-hop
+        self._assert_no_duplicate(router, aid)
+        self._assert_single_eval(router, aid)
+        body = delivered[0]["body"]
+        self.assertIn('"sku": "ACME-88"', body)
+
+    def test_scenario_5_contract_expiry_routes_to_nina(self):
+        router, aid = _run("scenario_5_contract_expiry.json")
+        self.assertEqual(router.ledger.plan_state(aid), "DELIVERED")
+        rows = router.ledger.notifications_for(aid)
+        delivered = [n for n in rows if n["status"] == "DELIVERED"]
+        self.assertEqual([n["stakeholder_id"] for n in delivered], ["STK-008"])  # Nina Osei
+        self._assert_no_duplicate(router, aid)
+        self._assert_single_eval(router, aid)
+        self.assertIn("CT-1042", delivered[0]["body"])
+
+    def test_scenario_6_sla_breach_ack_timeout_escalates(self):
+        router, aid = _run("scenario_6_sla_breach_ack_timeout.json")
+        self.assertEqual(router.ledger.plan_state(aid), "ESCALATED")
+        codes = [d["code"] for d in router.ledger.decision_log(aid)]
+        self.assertIn("R4C_TIMEOUT", codes)
+        rows = router.ledger.notifications_for(aid)
+        nina = [n for n in rows if n["stakeholder_id"] == "STK-008"][0]
+        self.assertEqual(nina["status"], "DELIVERED")
+        self.assertEqual(nina["escalation_level"], 1)
+        self._assert_no_duplicate(router, aid)
+        self._assert_single_eval(router, aid)
+        self.assertIn("billing-api", nina["body"])
+
+    def test_scenario_7_anomaly_medium_does_not_escalate(self):
+        router, aid = _run("scenario_7_anomaly_score_medium.json")
+        self.assertEqual(router.ledger.plan_state(aid), "DELIVERED")
+        codes = [d["code"] for d in router.ledger.decision_log(aid)]
+        self.assertIn("R4C_LOW_SEVERITY", codes)          # MEDIUM never auto-escalates
+        self.assertNotIn("R4C_TIMEOUT", codes)
+        rows = router.ledger.notifications_for(aid)
+        delivered = [n for n in rows if n["status"] == "DELIVERED"]
+        self.assertEqual([n["stakeholder_id"] for n in delivered], ["STK-009"])  # Leo Park
+        self._assert_no_duplicate(router, aid)
+        self._assert_single_eval(router, aid)
+        self.assertIn("isolation_forest", delivered[0]["body"])
+
 
 if __name__ == "__main__":
     unittest.main()

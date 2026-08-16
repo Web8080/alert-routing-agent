@@ -7,13 +7,29 @@
     "threshold": 20,
     "severity": "HIGH",
     "domain": "inventory",
-    "context": {"warehouse": "WH-4", "sku": "ACME-100", "last_checked_utc": "08:41"}
+    "context": {
+      "warehouse": "WH-4",
+      "sku": "ACME-100",
+      "last_checked_utc": "08:41"
+    }
   },
   "presence": {
-    "online": {"STK-003": false, "STK-006": false, "STK-007": false}
+    "online": {
+      "STK-010": false,
+      "STK-011": false,
+      "STK-003": false,
+      "STK-006": false,
+      "STK-007": false
+    }
   },
   "steps": [
-    {"op": "set_online", "sid": "STK-001", "online": false},
-    {"op": "ack"}
+    {
+      "op": "set_online",
+      "sid": "STK-001",
+      "online": false
+    },
+    {
+      "op": "ack"
+    }
   ]
 }

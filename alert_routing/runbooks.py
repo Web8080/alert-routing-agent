@@ -3,11 +3,11 @@
 """Deterministic runbook retrieval (post-decision only).
 
 A tiny, zero-dependency "RAG-shaped" slice: we score runbook documents against
-the ALERT METADATA (metric + domain + severity), deterministically, and attach
-the best runbook's step-list to the post-incident summary. The routing decision
-never touches runbooks — retrieval happens AFTER the decision and only feeds
-the human-facing summary. No embeddings, no LLM in the loop, so determinism is
-preserved even when the AI summary layer is on.
+the ALERT METADATA (metric + domain primary, severity as a tie-breaker),
+deterministically, and attach the best runbook's step-list to the post-incident
+summary. The routing decision never touches runbooks — retrieval happens AFTER
+the decision and only feeds the human-facing summary. No embeddings, no LLM in
+the loop, so determinism is preserved even when the AI summary layer is on.
 """
 
 from __future__ import annotations
@@ -25,10 +25,20 @@ def _terms(text: str) -> set[str]:
 
 
 def _score(alert, doc: str) -> int:
-    """Deterministic overlap score between alert metadata and a runbook doc."""
-    query = _terms(f"{alert.metric} {alert.domain} {alert.severity}")
+    """Deterministic overlap score between alert metadata and a runbook doc.
+
+    Metric + domain terms are the PRIMARY signal; severity only breaks ties
+    among domain-matching docs. Severity can never win a retrieval on its own —
+    otherwise a runbook that merely mentions "high" would out-rank the correct
+    domain runbook.
+    """
+    query = _terms(f"{alert.metric} {alert.domain}")
     doc_terms = _terms(doc)
-    return len(query & doc_terms)
+    matches = len(query & doc_terms)
+    if matches == 0:
+        return 0
+    severity = 1 if _terms(alert.severity) & doc_terms else 0
+    return matches * 10 + severity
 
 
 def retrieve(alert, docs: Optional[Sequence[Path]] = None) -> Optional[str]:

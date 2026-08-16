@@ -42,6 +42,18 @@ class BaseAdapter:
                  health: dict[str, ChannelState]) -> DeliveryReceipt:
         raise NotImplementedError
 
+    def deliver(self, notification: Notification) -> DeliveryReceipt:
+        """Physically deliver an already-committed notification (stubs: no-op).
+
+        send() decides channel viability at claim time (deterministic, no I/O);
+        deliver() is the irreversible I/O the stubs were emulating. The router
+        calls deliver() only once the recipient is committed (acknowledge/close),
+        so an INTENT that gets aborted/rerouted mid-flight never reaches a real
+        transport. A real transport failure here is RETRIABLE — nothing was
+        delivered — so the policy may retry the next channel or reroute.
+        """
+        return DeliveryReceipt.ACKED
+
 
 class EmailAdapter(BaseAdapter):
     """Fire-and-forget: an ACK means the mail server accepted the message.
@@ -83,17 +95,31 @@ class SMSAdapter(BaseAdapter):
 class RealEmailAdapter(EmailAdapter):
     """Real SMTP delivery, enabled when ALERT_SMTP_HOST is set.
 
-    Faithful semantics preserved: SMTP acceptance is non-recallable (R3 basis),
-    so an ACK means the relay accepted the message. Transport errors, auth
-    failures, and missing/invalid recipient addresses are RETRIABLE (the router
-    falls back to the next preferred channel). When SMTP is NOT configured this
-    behaves exactly like the stub.
+    Two-phase delivery: send() decides channel viability at claim time
+    (deterministic, no I/O); deliver() performs the physical relay only once the
+    recipient is committed. SMTP acceptance is non-recallable (R3 basis), so an
+    ACK means the relay accepted the message. Transport errors, auth failures,
+    and missing/invalid recipient addresses are RETRIABLE (the router falls back
+    to the next preferred channel). When SMTP is NOT configured this behaves
+    exactly like the stub.
     """
 
     def _do_send(self, notification, snapshot_online, health) -> DeliveryReceipt:
         stub = super()._do_send(notification, snapshot_online, health)
-        if not settings.smtp_enabled():
+        if stub != DeliveryReceipt.ACKED:
             return stub
+        if not settings.smtp_enabled():
+            return DeliveryReceipt.ACKED
+        recipient = (notification.endpoint or "").strip()
+        if "@" not in recipient:
+            print(f"[smtp] no deliverable address for {notification.stakeholder_id}; "
+                  f"RETRIABLE -> fallback channel", file=sys.stderr)
+            return DeliveryReceipt.RETRIABLE
+        return DeliveryReceipt.ACKED
+
+    def deliver(self, notification: Notification) -> DeliveryReceipt:
+        if not settings.smtp_enabled():
+            return DeliveryReceipt.ACKED
         recipient = (notification.endpoint or "").strip()
         if "@" not in recipient:
             print(f"[smtp] no deliverable address for {notification.stakeholder_id}; "
@@ -137,16 +163,32 @@ class RealEmailAdapter(EmailAdapter):
 class RealSlackAdapter(SlackAdapter):
     """Real Slack delivery via incoming webhooks, enabled when ALERT_SLACK_WEBHOOKS is set.
 
+    Two-phase delivery: send() decides channel viability at claim time
+    (deterministic, no I/O); deliver() performs the physical webhook POST only
+    once the recipient is committed, so a rerouted INTENT never posts. An
+    endpoint without a wired webhook is RETRIABLE (the router falls back to the
+    next preferred channel) — faithful, honest, and it never fakes an ACK.
+
     `ALERT_SLACK_WEBHOOKS` is a JSON map of endpoint -> webhook URL:
         {"sarah.slack": "https://hooks.slack.com/services/T/B/X", ...}
-    An endpoint without a wired webhook is RETRIABLE (the router falls back to
-    the next preferred channel) — faithful, honest, and it never fakes an ACK.
     """
 
     def _do_send(self, notification, snapshot_online, health) -> DeliveryReceipt:
         stub = super()._do_send(notification, snapshot_online, health)
-        if not settings.slack_enabled():
+        if stub != DeliveryReceipt.ACKED:
             return stub
+        if not settings.slack_enabled():
+            return DeliveryReceipt.ACKED
+        if settings.slack_webhook_for((notification.endpoint or "").strip()):
+            return DeliveryReceipt.ACKED
+        print(f"[slack] no webhook wired for '{notification.endpoint}' "
+              f"({notification.stakeholder_id}); RETRIABLE -> fallback channel",
+              file=sys.stderr)
+        return DeliveryReceipt.RETRIABLE
+
+    def deliver(self, notification: Notification) -> DeliveryReceipt:
+        if not settings.slack_enabled():
+            return DeliveryReceipt.ACKED
         webhook = settings.slack_webhook_for((notification.endpoint or "").strip())
         if not webhook:
             print(f"[slack] no webhook wired for '{notification.endpoint}' "

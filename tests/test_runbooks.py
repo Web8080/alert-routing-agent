@@ -14,7 +14,6 @@ DOCS = [
     Path("runbooks/generic_escalation.md"),
 ]
 
-
 def _alert(metric="stock_level", domain="inventory", severity="HIGH"):
     return Alert(alert_id="a1", metric=metric, value=5, threshold=20,
                  severity=severity, domain=domain, context={}, ts="t=0")
@@ -29,6 +28,27 @@ class TestRunbookRetrieval(unittest.TestCase):
     def test_retrieves_cold_chain_runbook_for_temperature(self):
         doc = retrieve(_alert(metric="freezer_temp_c", domain="cold_chain"))
         self.assertIsNotNone(doc)
+        self.assertIn("Cold Chain", doc)
+
+    def test_retrieves_contract_expiry_runbook(self):
+        doc = retrieve(_alert(metric="contract_expiry", domain="contracts"))
+        self.assertIsNotNone(doc)
+        self.assertIn("Contract Expiry", doc)
+
+    def test_retrieves_sla_breach_runbook(self):
+        doc = retrieve(_alert(metric="sla_response_time", domain="sla"))
+        self.assertIsNotNone(doc)
+        self.assertIn("SLA / Response", doc)
+
+    def test_retrieves_anomaly_runbook(self):
+        doc = retrieve(_alert(metric="anomaly_score", domain="anomaly"))
+        self.assertIsNotNone(doc)
+        self.assertIn("Anomaly Score", doc)
+
+    def test_severity_word_never_wins_retrieval(self):
+        # A runbook mentioning "high" must not out-rank the domain match.
+        doc = retrieve(_alert(metric="freezer_temp_c", domain="cold_chain",
+                              severity="HIGH"))
         self.assertIn("Cold Chain", doc)
 
     def test_deterministic(self):

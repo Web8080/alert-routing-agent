@@ -21,8 +21,10 @@ class TestRanker(unittest.TestCase):
         r = make_router()
         a = make_alert(domain="inventory")
         order = [s.id for s, _ in rank(a, r.stakeholders)]
-        self.assertEqual(order, ["STK-007", "STK-006", "STK-001", "STK-002",
-                                 "STK-004", "STK-003", "STK-005"])
+        self.assertEqual(order, ["STK-007", "STK-010", "STK-011", "STK-006",
+                                 "STK-001", "STK-002", "STK-004", "STK-003",
+                                 "STK-014", "STK-005", "STK-008", "STK-009",
+                                 "STK-012", "STK-013"])
 
     def test_expertise_dominates_seniority(self):
         r = make_router()

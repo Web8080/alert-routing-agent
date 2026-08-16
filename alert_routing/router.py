@@ -17,7 +17,7 @@ from typing import Optional
 
 from .channels import BaseAdapter, adapter_for
 from .changes import ChangeType, DetectedChange, detect
-from .decision import _next_backup, decide
+from .decision import _next_backup, decide, decide_batch
 from .ledger import Ledger
 from .models import (
     Alert,
@@ -113,6 +113,7 @@ class Router:
         self.plan: Optional[Plan] = None
         self.snapshots: dict[str, SnapshotEntry] = {}
         self.pending: Optional[Notification] = None
+        self.pending_changes: list[DetectedChange] = []
         self.trace: list[TraceLine] = []
 
     # ------------------------------------------------------------- lifecycle
@@ -245,6 +246,32 @@ class Router:
                                         f"SENDING {a.alert_id} -> {sid} via {channel} "
                                         f"(level={level})"))
 
+    def _commit_pending(self) -> None:
+        """Physically deliver the committed notification (fire the real transport).
+
+        The decision layer has already settled on this recipient; this performs
+        the irreversible I/O the stub adapters were emulating, and only happens
+        at the commit point (acknowledge/close) — an INTENT that was aborted or
+        re-routed mid-flight never reaches a real transport. If the real
+        transport fails (RETRIABLE), nothing was delivered, so the retriable
+        policy path re-applies (R1 next channel, or reroute) until a message
+        actually lands. Result: the final recipient is the ONLY one who
+        physically receives a notification.
+        """
+        while self.pending is not None:
+            n = self.pending
+            if self.adapters[n.channel].deliver(n) == DeliveryReceipt.ACKED:
+                return
+            self.trace.append(TraceLine(self.clock.now(), "send",
+                                        f"DELIVERY_FAILED {n.notification_id} via {n.channel}"))
+            change = DetectedChange(ChangeType.CHANNEL_FAILED, n.stakeholder_id,
+                                    channel=n.channel,
+                                    snapshot=self.snapshots.get(n.stakeholder_id))
+            self._cancel_pending()
+            self._apply_verdict(decide(self.alert, self.plan, self.snapshots,
+                                       self.stakeholders, self._view(), change,
+                                       self.config))
+
     def _apply_duty_manager_if_no_experts(self) -> None:
         """E8: unknown/unmapped domain → no candidate has expertise.
 
@@ -305,9 +332,19 @@ class Router:
     def acknowledge(self) -> None:
         """Finalize the in-flight send (the 'ack' from the channel).
 
+        This is also the COMMIT point: the recipient is settled, so the
+        deferred physical delivery (real Slack/SMTP) happens here. An INTENT
+        that was aborted or re-routed earlier never reaches a real transport.
+        If the real transport fails, the policy retries the next channel (R1);
+        only a notification that physically lands is marked DELIVERED.
+
         Does NOT set the plan terminal: the parallel-escalate path (R3/R4b)
         must still be able to react to events that arrive after the ack but
         before the dispatch is closed. close() finalizes the plan state."""
+        self.flush()
+        if self.pending is None:
+            return
+        self._commit_pending()
         if self.pending is None:
             return
         n = self.pending
@@ -320,6 +357,7 @@ class Router:
 
     def close(self) -> None:
         """End the dispatch: finalize plan state (DELIVERED or ESCALATED)."""
+        self.flush()
         if self.plan is None or self.plan.state.value in ("ABORTED", "FAILED"):
             return
         if self.pending is not None:
@@ -335,6 +373,12 @@ class Router:
     # -------------------------------------------------------------- events
 
     def on_event(self, notice: ChangeNotice) -> None:
+        """Receive a presence/health event.
+
+        The event is folded into the frozen snapshot immediately (a diff, not a
+        re-query) but the DECISION is deferred: the change is queued so that any
+        other events landing in the same window are folded together into ONE
+        verdict at the next control point (see flush / decide_batch)."""
         if self.plan is None or self.plan.state.value in (
                 "DELIVERED", "ESCALATED", "ABORTED", "FAILED"):
             return
@@ -347,8 +391,19 @@ class Router:
             self._log("NO_CHANGE", "IGNORE", None,
                       f"Event for {notice.stakeholder_id} matches frozen snapshot; no action.")
             return
-        verdict = decide(a, self.plan, self.snapshots, self.stakeholders,
-                         self._view(), change, self.config)
+        self.pending_changes.append(change)
+
+    def flush(self) -> None:
+        """Drain every queued event as a SINGLE batch decision (if any)."""
+        if not self.pending_changes:
+            return
+        if self.plan is None or self.plan.state.value in (
+                "DELIVERED", "ESCALATED", "ABORTED", "FAILED"):
+            self.pending_changes.clear()
+            return
+        changes, self.pending_changes = self.pending_changes, []
+        verdict = decide_batch(self.alert, self.plan, self.snapshots,
+                               self.stakeholders, self._view(), changes, self.config)
         self._apply_verdict(verdict)
 
     def _apply_event_to_snapshot(self, change: DetectedChange) -> None:
@@ -389,6 +444,7 @@ class Router:
             return
         if self.pending is not None and self.pending.escalation_level >= 1:
             return
+        self.flush()
         verdict = decide(self.alert, self.plan, self.snapshots, self.stakeholders,
                          self._view(), None, self.config, ack_timeout=True)
         self._apply_verdict(verdict)

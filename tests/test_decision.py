@@ -39,6 +39,7 @@ class TestPolicy(unittest.TestCase):
         a = make_alert(alert_id="r2", severity="HIGH")
         r.dispatch(a)
         r.presence.set_online("STK-001", False)
+        r.flush()  # decision windows drain at control points (batch fold)
         self.assertIn("R2_ABORT_REROUTE",
                       [d["code"] for d in r.ledger.decision_log(a.alert_id)])
         r.acknowledge()
@@ -75,6 +76,7 @@ class TestPolicy(unittest.TestCase):
         a = make_alert(alert_id="r4a", severity="HIGH")
         r.dispatch(a)                                    # pending Sarah (q 6.50)
         r.presence.set_online("STK-007", True)           # Maya online (q 8.00, delta 1.5 >= 1.5)
+        r.flush()
         codes = [d["code"] for d in r.ledger.decision_log(a.alert_id)]
         self.assertIn("R4A_REROUTE", codes)
         r.acknowledge()
@@ -90,8 +92,7 @@ class TestPolicy(unittest.TestCase):
         r.dispatch(a)
         r.acknowledge()                                  # Sarah delivered
         r.presence.set_online("STK-007", True)           # Maya online mid-flight, after ack
-        r.acknowledge()
-        r.close()
+        r.flush()
         codes = [d["code"] for d in r.ledger.decision_log(a.alert_id)]
         self.assertIn("R4B_ESCALATE", codes)
         maya = [n for n in r.ledger.notifications_for(a.alert_id)
@@ -104,6 +105,7 @@ class TestPolicy(unittest.TestCase):
         a = make_alert(alert_id="delta", severity="HIGH")
         r.dispatch(a)                                    # Sarah q 6.50
         r.presence.set_online("STK-006", True)           # Priya q 7.25 -> delta 0.75 < 1.5
+        r.flush()
         codes = [d["code"] for d in r.ledger.decision_log(a.alert_id)]
         self.assertIn("R5_NO_DOWNGRADE", codes)          # refused: not a material improvement
         r.acknowledge()
@@ -118,6 +120,7 @@ class TestPolicy(unittest.TestCase):
         a = make_alert(alert_id="r5", severity="CRITICAL")
         r.dispatch(a)
         r.presence.set_online("STK-003", True)           # Elena seniority 5, q 3.20 vs 6.50
+        r.flush()
         codes = [d["code"] for d in r.ledger.decision_log(a.alert_id)]
         self.assertIn("R5_NO_DOWNGRADE", codes)
         r.acknowledge()
@@ -131,13 +134,21 @@ class TestPolicy(unittest.TestCase):
         r = make_router()
         a = make_alert(alert_id="r5b", severity="HIGH")
         r.dispatch(a)
-        r.presence.set_online("STK-001", False)          # R2 -> David (q 5.80)
-        r.presence.set_online("STK-003", True)           # Elena (q 3.20) < David -> ignore
+        r.presence.set_online("STK-001", False)          # offline mid-flight
+        r.presence.set_online("STK-003", True)           # Elena (q 3.20) comes online same window
+        r.flush()                                        # one fold: Elena loses to backup David (q 5.80)
         codes = [d["code"] for d in r.ledger.decision_log(a.alert_id)]
-        self.assertEqual(codes.count("R5_NO_DOWNGRADE"), 1)
+        # The fold never even *considers* the worse candidate: David is picked
+        # directly (R2_ABORT_REROUTE) and no downgrade decision is emitted.
+        self.assertNotIn("R5_NO_DOWNGRADE", codes)
+        self.assertNotIn("R4A_REROUTE", codes)
+        self.assertIn("R2_ABORT_REROUTE", codes)
         r.acknowledge()
         r.close()
         self.assertEqual(r.ledger.plan_state(a.alert_id), "DELIVERED")
+        delivered = [n["stakeholder_id"] for n in r.ledger.notifications_for(a.alert_id)
+                     if n["status"] == "DELIVERED"]
+        self.assertEqual(delivered, ["STK-002"])         # David — never downgraded to Elena
 
     # ------------------------------------------------------------- R4c ack-timeout escalate
     def test_r4c_ack_timeout_escalates(self):
@@ -223,6 +234,90 @@ class TestPolicy(unittest.TestCase):
         self.assertIn(("STK-001", "slack", "CANCELLED"), by)   # failed attempt released
         self.assertIn(("STK-001", "email", "DELIVERED"), by)   # same recipient, next channel
         self.assertEqual(len({n["stakeholder_id"] for n in rows}), 1)
+
+
+class TestBatchFold(unittest.TestCase):
+    """Simultaneous-evaluation semantics: one decision window => ONE verdict.
+
+    Events that land before the next control point are folded together, so a
+    recipient going offline while a better candidate comes online is a single
+    hop straight to the best available target (R2B) instead of two sequential
+    decisions (R2 to backup, then R4a).
+    """
+
+    def test_offline_plus_better_candidate_single_hop(self):
+        r = make_router()
+        a = make_alert(alert_id="batch-best", severity="CRITICAL")
+        r.dispatch(a)                                    # pending Sarah (q 6.50)
+        r.presence.set_online("STK-001", False)          # primary offline
+        r.presence.set_online("STK-006", True)           # Priya online (q 7.25 > backup David 5.80)
+        r.flush()                                        # ONE window, ONE verdict
+        codes = [d["code"] for d in r.ledger.decision_log(a.alert_id)]
+        self.assertIn("R2B_REROUTE_BEST", codes)
+        # Exactly one reroute decision — no intermediate hop to the backup.
+        reroutes = [d for d in r.ledger.decision_log(a.alert_id)
+                    if d["action"] == "REROUTE"]
+        self.assertEqual(len(reroutes), 1)
+        self.assertEqual(reroutes[0]["target"], "STK-006")
+        r.acknowledge()
+        r.close()
+        delivered = [n["stakeholder_id"] for n in r.ledger.notifications_for(a.alert_id)
+                     if n["status"] == "DELIVERED"]
+        self.assertEqual(delivered, ["STK-006"])
+
+    def test_offline_only_reroutes_next_backup(self):
+        r = make_router()
+        a = make_alert(alert_id="batch-backup", severity="HIGH")
+        r.dispatch(a)
+        r.presence.set_online("STK-001", False)          # no candidate event in the window
+        r.flush()
+        codes = [d["code"] for d in r.ledger.decision_log(a.alert_id)]
+        self.assertIn("R2_ABORT_REROUTE", codes)
+        r.acknowledge()
+        r.close()
+        delivered = [n["stakeholder_id"] for n in r.ledger.notifications_for(a.alert_id)
+                     if n["status"] == "DELIVERED"]
+        self.assertEqual(delivered, ["STK-002"])         # David, next-ranked
+
+    def test_worse_candidate_loses_to_backup(self):
+        r = make_router()
+        a = make_alert(alert_id="batch-worse", severity="HIGH")
+        r.dispatch(a)                                    # Sarah q 6.50
+        r.presence.set_online("STK-001", False)          # offline
+        r.presence.set_online("STK-003", True)           # Elena q 3.20 < backup David 5.80
+        r.flush()
+        codes = [d["code"] for d in r.ledger.decision_log(a.alert_id)]
+        self.assertIn("R2_ABORT_REROUTE", codes)         # fold picks David, not Elena
+        self.assertNotIn("R2B_REROUTE_BEST", codes)
+        r.acknowledge()
+        r.close()
+        delivered = [n["stakeholder_id"] for n in r.ledger.notifications_for(a.alert_id)
+                     if n["status"] == "DELIVERED"]
+        self.assertEqual(delivered, ["STK-002"])
+
+    def test_single_event_window_equals_single_decision(self):
+        r = make_router()
+        a = make_alert(alert_id="batch-single", severity="HIGH")
+        r.dispatch(a)
+        r.presence.set_online("STK-001", False)
+        r.flush()
+        codes = [d["code"] for d in r.ledger.decision_log(a.alert_id)]
+        self.assertEqual(codes, ["R2_ABORT_REROUTE"])    # identical to the single-event path
+
+    def test_candidate_available_after_ack_escalates_in_parallel(self):
+        r = make_router()
+        a = make_alert(alert_id="batch-r4b", severity="HIGH")
+        r.dispatch(a)
+        r.acknowledge()                                  # Sarah delivered
+        r.presence.set_online("STK-007", True)           # Maya (q 8.00) online after ack
+        r.flush()
+        codes = [d["code"] for d in r.ledger.decision_log(a.alert_id)]
+        self.assertIn("R4B_ESCALATE", codes)
+        r.acknowledge()
+        r.close()
+        maya = [n for n in r.ledger.notifications_for(a.alert_id)
+                if n["stakeholder_id"] == "STK-007"][0]
+        self.assertEqual(maya["escalation_level"], 1)
 
 
 if __name__ == "__main__":

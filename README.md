@@ -99,7 +99,19 @@ python3 -m alert_routing.cli scenarios/scenario_2_channel_fail.json
 # 3. More senior stakeholder appears, but lower domain qualification → no downgrade
 python3 -m alert_routing.cli scenarios/scenario_3_no_downgrade.json
 
-# 4. Full test suite (88 tests: unit + scenario + invariant + agentic-layer)
+# 4. TWO events land in one decision window → a single fold, one hop (R2B)
+python3 -m alert_routing.cli scenarios/scenario_4_simultaneous.json
+
+# 5. Contract expiry routes to the new Contracts & Compliance lead
+python3 -m alert_routing.cli scenarios/scenario_5_contract_expiry.json
+
+# 6. Critical SLA breach auto-escalates when the ack window expires (R4c)
+python3 -m alert_routing.cli scenarios/scenario_6_sla_breach_ack_timeout.json
+
+# 7. MEDIUM anomaly score never auto-escalates (severity gate on the new domain)
+python3 -m alert_routing.cli scenarios/scenario_7_anomaly_score_medium.json
+
+# Full test suite (101 tests: unit + scenario + invariant + agentic-layer)
 python3 -m unittest discover
 ```
 
@@ -114,7 +126,11 @@ make test               # or: python3 -m unittest discover
 make run1               # or: alert-routing scenarios/scenario_1_offline.json
 make run2
 make run3
-make run-all            # all three scenarios back-to-back
+make run4
+make run5
+make run6
+make run7
+make run-all            # all seven scenarios back-to-back
 ```
 
 Each CLI run prints the full dispatch **trace** and then the **incident timeline**
@@ -182,6 +198,10 @@ curl -X POST http://127.0.0.1:8000/alert \
 | `scenario_1_offline.json` | Critical stock alert → **Sarah** (q 6.50) selected, Slack dispatch begins → Sarah goes **offline** mid-flight → send not acked → **abort + re-route** to next-ranked **David** (q 5.80) | R2 |
 | `scenario_2_channel_fail.json` | Slack provider **fails** mid-flight → Sarah is still the correct recipient → retry **same person via email** (channel fallback, no re-route to a worse person) | R1 |
 | `scenario_3_no_downgrade.json` | **Elena** (seniority 5 — most senior) becomes available → but her inventory qualification (3.20) is far below Sarah's (6.50) → **refused**, Sarah stays primary | R5 |
+| `scenario_4_simultaneous.json` | Sarah goes **offline** AND **Priya** (q 7.25 > backup David 5.80) comes online in the **same decision window** → the batch fold makes ONE hop straight to Priya instead of two sequential reroutes | R2B |
+| `scenario_5_contract_expiry.json` | Contract expiry alert in the `contracts` domain → routes to the new specialist **Nina** (q 7.25) — a newly added domain maps to its owner with zero rule changes | domain routing |
+| `scenario_6_sla_breach_ack_timeout.json` | Critical SLA breach pages **Elena** (sla 5, q 8.00) → she never acks → **escalate in parallel** to Nina when the ack window expires | R4c |
+| `scenario_7_anomaly_score_medium.json` | MEDIUM anomaly-score alert routes to **Leo** (anomaly 5, q 6.50) → an ack timeout fires but is **not armed** for MEDIUM → no escalation, single recipient | R4c gate |
 
 Each run also prints the ranking, which shows **Maya (q 8.00)** and **Priya
 (q 7.25)** above Sarah — they're on-call but offline at the snapshot, so they're
@@ -213,13 +233,13 @@ alert_routing/
   ui.py           zero-dependency web dashboard (stdlib http.server)
   static/         index.html + style.css + app.js + favicon.svg (dark console)
   server.py       optional FastAPI (never imported by core)
-scenarios/        the 3 demo scenario JSONs
+scenarios/        the 7 demo scenario JSONs
 scenarios/proposed/  scenarios adopted by the invariant suite (opt-in)
-runbooks/         runbook corpus (md, keyword-scored)
-incidents/        seeded past-incident KB (retrieval for the triage brief)
-registry.json     stakeholder seed (7 people, overlapping expertise)
+runbooks/         runbook corpus (6 md, keyword-scored)
+incidents/        seeded past-incident KB (6, retrieval for the triage brief)
+registry.json     stakeholder seed (9 people, overlapping expertise)
 roster.json       on-call shifts (primary + backups per week)
-tests/            unit + scenario + invariant + agentic-layer tests (88)
+tests/            unit + scenario + invariant + agentic-layer tests (101)
 ```
 
 ## Design decisions & tradeoffs (short version)
@@ -295,8 +315,10 @@ to zero for a fully deterministic demo. Design + evals live in
 make serve &                       # FastAPI server on http://127.0.0.1:8000
 python -m alert_routing.metrics_feed --url http://127.0.0.1:8000/alert
 ```
-Simulated warehouse/cold-chain/compute telemetry streams metric values until
-each threshold is crossed, POSTing real alerts into the running server.
+Simulated warehouse/cold-chain/compute/contracts/SLA/anomaly telemetry streams
+metric values until each threshold is crossed (below-threshold for stock and
+contract expiry, above-threshold for SLA latency and anomaly scores), POSTing
+real alerts into the running server.
 
 **LLM proposes, the invariant suite decides:**
 ```bash

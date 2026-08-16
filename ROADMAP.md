@@ -71,7 +71,7 @@ Deliverables (from the brief): public GitHub repo under `github/web8080`, a
 | server.py (optional FastAPI) | ✅ Done |
 | scenario JSON files | ✅ Done |
 | registry.json seed | ✅ Done |
-| tests (88 passing) | ✅ Done |
+| tests (101 passing) | ✅ Done |
 | README.md (+ TOC) | ✅ Done |
 | Packaging (pyproject + entry point + Makefile) | ✅ Done |
 | author/date headers on all scripts | ✅ Done (23 files) |
@@ -79,7 +79,7 @@ Deliverables (from the brief): public GitHub repo under `github/web8080`, a
 | Dashboard: hybrid 3-view (Console/Policy/Registry) | ✅ Done |
 | Editable registry (CRUD via UI + API) | ✅ Done |
 | On-call roster (roster.py + roster.json shifts) | ✅ Done |
-| Run + verify all 3 scenarios | ✅ Done |
+| Run + verify all 7 scenarios | ✅ Done |
 | Incident timeline verified | ✅ Done |
 | Public repo under github/web8080 | ⏳ Not started |
 | Demo video (≤3 min) | ⏳ Not started |
@@ -206,7 +206,7 @@ if FastAPI is absent, `build_app()` returns None (module still imports cleanly).
       `# date: 2026-08-14` prepended to all 23 `.py` files (alert_routing/ + tests/).
 - [x] **Run-anywhere packaging** — `pyproject.toml` (installable, `alert-routing`
       console command, zero deps, metadata author), `requirements.txt` (optional
-      extras only), `Makefile` (run1/run2/run3/run-all/test/serve/install).
+      extras only), `Makefile` (run1…run7/run-all/test/serve/install).
       Verified end-to-end in a throwaway venv: `pip install -e .` → `alert-routing`
       + `python -m unittest discover` both green with NO third-party deps.
 - [x] **Web UI (built)** — `alert_routing/ui.py` + `static/` (index.html,
@@ -369,12 +369,40 @@ if FastAPI is absent, `build_app()` returns None (module still imports cleanly).
 - [x] **Dashboard wiring** — `_summary_payload` returns `ai_triage`; Console +
       Policy cards render the brief (cause + confidence, first checks,
       remediation, runbook, past incidents, mode badge + audit line).
-- [x] **New tests (88 total)** — `test_agents.py`: KB retrieval order + record
+- [x] **New tests (101 total)** — `test_agents.py`: KB retrieval order + record
       round-trip, brief schema, supervisor audit trail + fallback determinism,
       honesty (valid JSON → ai; garbage/schema-mismatch → fallback), safety-gate
       defect/clean/missing-keys.
 - [x] **Live-verified** — real Anthropic run returns `mode=ai, source=ai` with
       runbook + similar incidents; keyless fallback stays fully deterministic.
+
+### Phase 10 — Simultaneous evaluation + sharper demo domains ✅ DONE
+
+- [x] **One window, one decision (`R2B`)** — `decide_batch()` folds every change
+      queued before a control point into a SINGLE verdict. A recipient going
+      offline while a better candidate comes online is ONE hop straight to the
+      best available target (no intermediate backup, no second R4a re-reroute).
+      Single-event windows are byte-identical to the old `decide()` path.
+- [x] **Deferred decisions at control points** — `on_event` folds events into the
+      frozen snapshot immediately but queues the decision; `router.flush()`
+      drains at ack / close / ack-timeout. Events are coalesced, not dropped.
+- [x] **`scenario_4_simultaneous.json`** — Sarah offline + Priya online in one
+      window → exactly one `R2B_REROUTE_BEST` reroute to STK-006.
+- [x] **Three new domains** — `contracts` (contract expiry), `sla` (response-time
+      breach), `anomaly` (anomaly score). Registry grows to 9 people: **Nina Osei**
+      (contracts/sla) and **Leo Park** (anomaly); Elena's `sla_contracts` split
+      into `sla` + `contracts`.
+- [x] **Scenarios 5–7** — contract expiry → Nina (domain routing); critical SLA
+      ack-timeout → parallel escalate (R4c); MEDIUM anomaly → never auto-escalates
+      (R4c severity gate).
+- [x] **Runbooks 4–6 + incidents 4–6** — `contract_expiry`, `sla_breach`,
+      `anomaly_score`; runbook scoring is now **domain-gated** (severity only a
+      tie-break — a doc that says "high" can no longer out-rank the right runbook).
+- [x] **Metrics feed** — 6 sensors incl. contracts/sla/anomaly, with
+      `direction: above|below` so upward breaches (latency, anomaly score) fire.
+- [x] **New tests (101 total)** — `TestBatchFold` (single-hop / backup / worse-
+      candidate / single-event-equivalence / R4b-after-ack), scenario 4–7
+      end-to-end, runbook retrieval for the new domains, ranker order update.
 
 ---
 
@@ -412,12 +440,16 @@ Alert_routing/
 ├── pyproject.toml                  ✅ installable, `alert-routing` command
 ├── requirements.txt                ✅ optional extras only (core is stdlib)
 ├── Makefile                        ✅ run1/run2/run3/run-all/test/serve/ui/install
-├── registry.json                   ✅ stakeholder seed (7 people)
+├── registry.json                   ✅ stakeholder seed (9 people)
 ├── roster.json                     ✅ on-call shifts (primary + backups per week)
 ├── scenarios/                      ✅
 │   ├── scenario_1_offline.json
 │   ├── scenario_2_channel_fail.json
 │   ├── scenario_3_no_downgrade.json
+│   ├── scenario_4_simultaneous.json   ✅ (R2B batch fold)
+│   ├── scenario_5_contract_expiry.json
+│   ├── scenario_6_sla_breach_ack_timeout.json
+│   ├── scenario_7_anomaly_score_medium.json
 │   └── proposed/                   ✅ (LLM-proposed, invariant-adopted scenarios)
 ├── runbooks/                       ✅ (post-decision runbook corpus, md)
 ├── alert_routing/                  ✅ (all files carry author/date headers)
@@ -431,7 +463,7 @@ Alert_routing/
 │   ├── agents.py            incidents.py      ✅ (§22 agentic layer)
 │   └── static/              (index.html/css/js/favicon — built, dark console)
 ├── incidents/                          ✅ (seeded triage KB)
-├── tests/                            ✅ 88 tests
+├── tests/                            ✅ 101 tests
 ├── .github/workflows/ci.yml          ✅ (unit tests + cross-seed determinism)
 └── Dockerfile                        ✅
 ```
@@ -448,8 +480,12 @@ in the "Build status" table.** As of this update:
    ROADMAP/BLUEPRINT §21).
 1b. **Agentic layer is DONE (Phase 9)** — two-lane AI (§22): read-only triage/
    comms/postmortem agents + supervisor + safety gate, `incidents/` KB,
-   dashboard triage rendering, 88 tests, docs in line (README/TESTING/
+   dashboard triage rendering, 101 tests, docs in line (README/TESTING/
    ROADMAP/BLUEPRINT §22/INTERVIEW_GUIDE).
+1c. **Simultaneous evaluation + sharper demo is DONE (Phase 10)** — `R2B`
+   batch fold (one decision window ⇒ one verdict), 7 demo scenarios across
+   inventory / contracts / sla / anomaly domains, 6 runbooks + 6 incidents,
+   6-feed sensors, 101 tests.
 2. **Create the public repo** under `github/web8080` via `gh` (public), push,
    verify in a logged-out browser (the brief requires this; it can't be checked
    from inside the sandbox).

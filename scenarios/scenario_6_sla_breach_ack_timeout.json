@@ -1,0 +1,26 @@
+{
+  "name": "scenario_6_sla_breach_ack_timeout",
+  "description": "A critical SLA response-time breach pages Elena Ross (Platform Lead, sla 5, q 8.00). She does not acknowledge within the window, so the ack-timeout rule (R4c) escalates IN PARALLEL to Nina Osei (sla 3, q 3.60) \u2014 SLA semantics: a critical breach does not wait for an ack. Demonstrates the ack-timeout escalation path on the new sla domain.",
+  "alert": {
+    "metric": "sla_response_time",
+    "value": 1200,
+    "threshold": 500,
+    "severity": "CRITICAL",
+    "domain": "sla",
+    "context": {
+      "service": "billing-api",
+      "window": "p99"
+    }
+  },
+  "presence": {
+    "online": {
+      "STK-010": false,
+      "STK-011": false
+    }
+  },
+  "steps": [
+    {
+      "op": "ack_timeout"
+    }
+  ]
+}

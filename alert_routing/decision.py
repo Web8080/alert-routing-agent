@@ -15,6 +15,12 @@ R4b escalate to better     same, but already acked
 R4c ack-timeout escalate   HIGH/CRITICAL, no ack within window
 R5  ignore downgrade       candidate qualifies <= current + delta -> IGNORE
 R6  abort / unresolved     no viable target remains
+
+R2B (decide_batch only): several perturbations can land in the SAME decision
+    window. decide_batch folds them into ONE verdict instead of N sequential
+    single-event decisions: a recipient going offline while a better-qualified
+    candidate comes online is a SINGLE hop straight to the best available target
+    (no intermediate backup, no second R4a re-reroute). One window => one action.
 """
 
 from __future__ import annotations
@@ -236,3 +242,117 @@ def decide(
                        rationale="Event matches frozen snapshot; no action.")
 
     raise UnhandledSituationError(f"Unhandled change type: {change.ctype}")
+
+
+def _offline_batch_verdict(
+    alert: Alert,
+    plan: Plan,
+    snapshots: dict[str, SnapshotEntry],
+    stakeholders: dict[str, Stakeholder],
+    view: LedgerView,
+    candidates: list[DetectedChange],
+) -> Verdict:
+    """Recipient offline, nothing acked: pick the BEST target now available.
+
+    The recipient is gone, so a move is forced — there is no "stay put" option
+    and no churn risk, so MIN_REROUTE_DELTA does not apply here (it guards
+    voluntary interruption, not a forced handoff). The fold evaluates the
+    next-ranked backup AND every candidate who just came online together and
+    hands off to the highest-qualified available one. If a candidate wins, this
+    is a SINGLE hop straight to them (R2B) — the sequential alternative (R2 to
+    backup, then a separate R4a) would strand a worse recipient. Ties resolve
+    to the snapshot-ordered backup for route stability.
+    """
+    backup = _next_backup(plan, snapshots, view, exclude_attempted=True)
+    best_cand = max(
+        candidates,
+        key=lambda c: _candidate_qualification(
+            c.stakeholder_id, snapshots, stakeholders, alert),
+        default=None,
+    )
+    cand_q = _candidate_qualification(best_cand.stakeholder_id, snapshots, stakeholders, alert) \
+        if best_cand else float("-inf")
+    backup_q = _candidate_qualification(backup.stakeholder_id, snapshots, stakeholders, alert) \
+        if backup else float("-inf")
+    if best_cand is not None and cand_q > backup_q:
+        return Verdict(
+            action="REROUTE", target=best_cand.stakeholder_id,
+            decision_code="R2B_REROUTE_BEST",
+            rationale=(f"Recipient {view.current_sid} went offline mid-flight and "
+                       f"candidate {best_cand.stakeholder_id} (qualification {cand_q:.2f}) "
+                       f"came online in the same window; folding all events into a single "
+                       f"hop straight to {best_cand.stakeholder_id} instead of the "
+                       f"next-ranked backup (which would strand a worse recipient)."))
+    if backup is not None:
+        return Verdict(
+            action="REROUTE", target=backup.stakeholder_id,
+            decision_code="R2_ABORT_REROUTE",
+            rationale=(f"Recipient {view.current_sid} went offline mid-flight and the "
+                       f"send was not acknowledged; rerouting to next-ranked backup "
+                       f"{backup.stakeholder_id} (snapshot order)."))
+    return Verdict(
+        action="ABORT", decision_code="R2_NO_BACKUP",
+        rationale=f"Recipient {view.current_sid} offline mid-flight, no viable target; aborting.")
+
+
+def decide_batch(
+    alert: Alert,
+    plan: Plan,
+    snapshots: dict[str, SnapshotEntry],
+    stakeholders: dict[str, Stakeholder],
+    view: LedgerView,
+    changes: Sequence[DetectedChange],
+    config: Config,
+    ack_timeout: bool = False,
+) -> Verdict:
+    """Fold ALL pending changes in one decision window into a SINGLE verdict.
+
+    Events can arrive faster than the decision loop drains them (e.g. a scenario
+    tick that takes the recipient offline and brings a better candidate online).
+    Sequential single-event handling would emit one action per event — possibly
+    two hops (R2 then R4a). This function evaluates the whole window at once and
+    returns exactly one action. A single-event window must produce the same
+    verdict as decide(), so the batch path is a superset, not a divergence.
+
+    Priority in the window (highest first):
+      1. ack-timeout                      (delegates to decide)
+      2. recipient offline, unacked       (R2 / R2B_REROUTE_BEST — folds candidates)
+      3. channel failed, unacked          (R1 retry — transport fix beats re-routing)
+      4. better candidate available       (R4a / R4b)
+      5. anything else / non-recipient    (IGNORE)
+    """
+    if plan.state.value in ("DELIVERED", "ESCALATED", "ABORTED", "FAILED"):
+        return Verdict(action="COMPLETE", decision_code="TERMINAL",
+                       rationale="Plan already in terminal state.")
+
+    if ack_timeout:
+        return decide(alert, plan, snapshots, stakeholders, view, None, config,
+                      ack_timeout=True)
+
+    cur = view.current_sid
+    offline = [c for c in changes
+               if c.ctype == ChangeType.RECIPIENT_OFFLINE and c.stakeholder_id == cur]
+    chan_fail = [c for c in changes
+                 if c.ctype == ChangeType.CHANNEL_FAILED and c.stakeholder_id == cur]
+    candidates = [c for c in changes
+                  if c.ctype == ChangeType.CANDIDATE_AVAILABLE
+                  and c.stakeholder_id not in view.notified_sids
+                  and c.stakeholder_id not in view.delivered_sids]
+
+    if offline and not view.current_acked:
+        return _offline_batch_verdict(
+            alert, plan, snapshots, stakeholders, view, candidates)
+    if chan_fail and not view.current_acked:
+        return decide(alert, plan, snapshots, stakeholders, view, chan_fail[0], config)
+    if candidates:
+        # decide() picks R4a (reroute, unacked) or R4b (parallel escalate, acked).
+        best = max(candidates, key=lambda c: _candidate_qualification(
+            c.stakeholder_id, snapshots, stakeholders, alert))
+        return decide(alert, plan, snapshots, stakeholders, view, best, config)
+    if offline and view.current_acked:
+        return decide(alert, plan, snapshots, stakeholders, view, offline[0], config)
+    if chan_fail and view.current_acked:
+        return decide(alert, plan, snapshots, stakeholders, view, chan_fail[0], config)
+    return Verdict(
+        action="IGNORE", decision_code="R5_OTHER_EVENTS",
+        rationale="No decisive change for the current recipient in this window.")
