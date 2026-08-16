@@ -33,6 +33,11 @@
 <div class="shell">
 
   <section class="controls">
+    <label for="scenario">scenario</label>
+    <select id="scenario" disabled>
+      <option value="">loading…</option>
+    </select>
+    <button id="dispatch" disabled class="primary">Dispatch</button>
     <label for="ai-toggle" class="ai-toggle-label" title="Anthropic summary, falls back to deterministic text">
       <input type="checkbox" id="ai-toggle" checked> AI summary
     </label>

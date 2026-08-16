@@ -3,6 +3,7 @@
 "use strict";
 
 const state = {
+  scenarios: [],
   payload: null,
   playing: false,
   cursor: 0,
@@ -42,6 +43,31 @@ async function api(url, opts = {}) {
   return res.json();
 }
 
+async function loadScenarios() {
+  const data = await api("/api/scenarios");
+  state.scenarios = data.scenarios || [];
+  const sel = $("scenario");
+  if (!sel) return;
+  sel.innerHTML = "";
+  for (const s of state.scenarios) {
+    const opt = document.createElement("option");
+    opt.value = s.name;
+    opt.textContent = s.name + " — " + s.description;
+    sel.appendChild(opt);
+  }
+  sel.disabled = state.scenarios.length === 0;
+  $("dispatch").disabled = state.scenarios.length === 0;
+  if (state.scenarios.length) {
+    sel.selectedIndex = 0;
+    showAlertMeta(state.scenarios[0].alert);
+  }
+}
+
+function selectedScenario() {
+  const sel = $("scenario");
+  return state.scenarios.find((s) => s.name === sel.value);
+}
+
 async function runDispatch(body) {
   if ($("ai-toggle").checked) body.summary = true;
   setControls(true);
@@ -53,7 +79,7 @@ async function runDispatch(body) {
     return;
   }
   state.payload = data;
-  showAlertMeta(data.alert);
+  showAlertMeta(data.alert || selectedScenario()?.alert);
   $("a-id").textContent = data.alert_id || "—";
   $("plan-state").textContent = "plan: " + data.plan_state;
   $("plan-state").classList.add("ready");
@@ -752,6 +778,7 @@ async function loadMonitor() {
 /* ---------------- controls ---------------- */
 
 function setControls(disable) {
+  $("dispatch").disabled = disable;
   $("dispatch-custom").disabled = disable;
   $("replay").disabled = !state.payload || disable;
   $("step").disabled = disable;
@@ -779,7 +806,7 @@ function togglePlay() {
 function replay() {
   if (!state.payload) return;
   resetView();
-  showAlertMeta(state.payload.alert);
+  showAlertMeta(state.payload.alert || selectedScenario()?.alert);
   renderNotifications(state.payload.notifications);
   renderRanking(state.payload.ranking, state.payload.notifications);
   renderDecisions(state.payload.decisions);
@@ -791,6 +818,11 @@ function replay() {
 
 /* ---------------- wiring ---------------- */
 
+$("scenario").addEventListener("change", () => showAlertMeta(selectedScenario()?.alert));
+$("dispatch").addEventListener("click", () => {
+  const s = selectedScenario();
+  if (s) runDispatch({ scenario: s.name });
+});
 $("dispatch-custom").addEventListener("click", () => {
   try {
     const alert = JSON.parse($("custom-alert").value);
@@ -838,4 +870,4 @@ document.querySelectorAll("#side-nav a").forEach((link) => {
   });
 });
 switchPage("monitor");
-startMonitor();
+loadScenarios();

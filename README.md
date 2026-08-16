@@ -179,7 +179,7 @@ left-sidebar nav:
   the git-tracked `registry.json` seed is refreshed on each save.
 
 **Monitor** — an AI watcher over every scenario feed, hands the work to the
-deterministic router (no manual scenario switching):
+deterministic router with one click (start/stop; no per-alert picking):
 - Each bundled scenario becomes a **telemetry feed**; values drift over a
   virtual clock and breach their thresholds on their own schedule.
 - Every breach is automatically submitted to the deterministic routing agent,
