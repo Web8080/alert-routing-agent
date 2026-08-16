@@ -33,11 +33,6 @@
 <div class="shell">
 
   <section class="controls">
-    <label for="scenario">scenario</label>
-    <select id="scenario" disabled>
-      <option value="">loading…</option>
-    </select>
-    <button id="dispatch" disabled class="primary">Dispatch</button>
     <label for="ai-toggle" class="ai-toggle-label" title="Anthropic summary, falls back to deterministic text">
       <input type="checkbox" id="ai-toggle" checked> AI summary
     </label>
@@ -54,6 +49,15 @@
     <!-- ============ CONSOLE ============ -->
     <section class="page active" id="console">
       <h2><span class="h-num">CONSOLE</span> live dispatch</h2>
+
+      <div class="scenario-bar">
+        <label for="scenario">scenario</label>
+        <select id="scenario" disabled>
+          <option value="">loading…</option>
+        </select>
+        <button id="dispatch" disabled class="primary">Dispatch</button>
+        <span class="dim">run any scripted scenario one at a time</span>
+      </div>
 
       <div class="console-grid">
 
