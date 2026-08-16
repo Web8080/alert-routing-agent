@@ -111,7 +111,7 @@ python3 -m alert_routing.cli scenarios/scenario_6_sla_breach_ack_timeout.json
 # 7. MEDIUM anomaly score never auto-escalates (severity gate on the new domain)
 python3 -m alert_routing.cli scenarios/scenario_7_anomaly_score_medium.json
 
-# Full test suite (106 tests: unit + scenario + invariant + agentic-layer)
+# Full test suite (113 tests: unit + scenario + invariant + agentic-layer)
 python3 -m unittest discover
 ```
 
@@ -174,6 +174,9 @@ left-sidebar nav:
 - Add / edit / delete stakeholders, with per-stakeholder channels and expertise.
 - **On-call shifts** (date range, primary + backups) persisted to `roster.json`;
   today's on-call chips are computed from shifts and fed into every dispatch.
+- Edits persist to a **SQLite store** (`registry.db`, overridable via
+  `ALERT_REGISTRY_DB` or `--registry-db`) and are read back by every dispatch;
+  the git-tracked `registry.json` seed is refreshed on each save.
 
 All three views read and write through the same stdlib `http.server` API
 (`/api/scenarios`, `/api/registry`, `/api/roster`, `/api/dispatch`) — the
@@ -239,7 +242,7 @@ runbooks/         runbook corpus (6 md, keyword-scored)
 incidents/        seeded past-incident KB (6, retrieval for the triage brief)
 registry.json     stakeholder seed (9 people, overlapping expertise)
 roster.json       on-call shifts (primary + backups per week)
-tests/            unit + scenario + invariant + agentic-layer tests (106)
+tests/            unit + scenario + invariant + agentic-layer tests (113)
 ```
 
 ## Design decisions & tradeoffs (short version)

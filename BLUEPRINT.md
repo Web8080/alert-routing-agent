@@ -1260,6 +1260,11 @@ a single left-sidebar nav, served by stdlib `http.server` (`alert_routing/ui.py`
 + `static/`). The front-end contains zero routing logic; it renders only the JSON
 API (`/api/scenarios`, `/api/registry`, `/api/roster`, `/api/dispatch`), all of
 which reuse `run_scenario_data` / `render_timeline` / `parse_stakeholder`.
+Registry edits land in a **SQLite store** (`RegistryStore`, default
+`registry.db` beside the JSON, overridable via `ALERT_REGISTRY_DB` /
+`--registry-db`): the DB is the runtime source of truth, dispatches read it
+directly, and the tracked `registry.json` seed is refreshed on every save so
+the repo stays a clean bootstrap.
 
 - **Console** — the live-dispatch screen: alert panel + custom-alert JSON form,
   dispatch state machine (RECEIVED → RANKED → PLANNED → DISPATCHING → CHANGE
@@ -1314,7 +1319,7 @@ alert_routing/
   timeline.py   + ai.py          + runbooks.py    + agents.py   + incidents.py
   ui.py (+ static/)               server.py (optional FastAPI, never core)
 scenarios/  (3 scripted scenarios + proposed/)   runbooks/   incidents/ (seeded KB)
-registry.json   roster.json   tests/ (106)   .github/workflows/ci.yml   Dockerfile
+registry.json   roster.json   tests/ (113)   .github/workflows/ci.yml   Dockerfile
 ```
 
 README/TESTING/ROADMAP have been brought in line with this

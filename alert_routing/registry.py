@@ -5,8 +5,9 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
-from typing import Union
+from typing import Optional, Union
 
 from .models import CHANNELS, ChannelPref, Stakeholder
 
@@ -95,3 +96,79 @@ def load_registry(path: Union[str, Path]) -> dict[str, Stakeholder]:
     if not out:
         raise RegistryValidationError("registry contains no stakeholders")
     return out
+
+
+def _default_registry_db(json_path: str) -> str:
+    env = os.environ.get("ALERT_REGISTRY_DB")
+    if env:
+        return env
+    return str(Path(json_path).resolve().parent / "registry.db")
+
+
+class RegistryStore:
+    """SQLite-backed registry store: the DB is the runtime source of truth.
+
+    The web UI / API write edits here so they persist across restarts and are
+    read back by every subsequent dispatch. When the DB is empty it is seeded
+    from the JSON file (the git-tracked default); saves also refresh the JSON so
+    the seed stays current. `ALERT_REGISTRY_DB` overrides the DB location.
+    """
+
+    def __init__(self, json_path: Union[str, Path] = "registry.json",
+                 db_path: Optional[str] = None):
+        self.json_path = str(json_path)
+        self.db_path = db_path or _default_registry_db(self.json_path)
+
+    def load(self) -> dict[str, Stakeholder]:
+        rows = self._read_db()
+        if rows:
+            return rows
+        reg = load_registry(self.json_path)
+        self.save(reg)
+        return reg
+
+    def save(self, stakeholders: dict[str, Stakeholder]) -> None:
+        self._write_db(stakeholders)
+        save_registry(self.json_path, stakeholders)
+
+    # -- sqlite ---------------------------------------------------------
+    def _connect(self):
+        import sqlite3
+        conn = sqlite3.connect(self.db_path, timeout=5)
+        conn.execute("CREATE TABLE IF NOT EXISTS registry "
+                     "(id TEXT PRIMARY KEY, payload TEXT NOT NULL)")
+        return conn
+
+    def _read_db(self) -> dict[str, Stakeholder]:
+        import sqlite3
+        try:
+            conn = self._connect()
+        except sqlite3.Error:
+            return {}
+        try:
+            rows = conn.execute("SELECT id, payload FROM registry").fetchall()
+        except sqlite3.Error:
+            return {}
+        finally:
+            conn.close()
+        out: dict[str, Stakeholder] = {}
+        for sid, payload in rows:
+            out[sid] = parse_stakeholder(json.loads(payload))
+        return out
+
+    def _write_db(self, stakeholders: dict[str, Stakeholder]) -> None:
+        import sqlite3
+        conn = self._connect()
+        try:
+            conn.execute("BEGIN")
+            conn.execute("DELETE FROM registry")
+            conn.executemany(
+                "INSERT INTO registry (id, payload) VALUES (?, ?)",
+                [(st.id, json.dumps(stakeholder_to_dict(st), sort_keys=True))
+                 for st in sorted(stakeholders.values(), key=lambda s: s.id)])
+            conn.commit()
+        except sqlite3.Error:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()

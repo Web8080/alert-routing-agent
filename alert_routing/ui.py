@@ -64,6 +64,16 @@ _SCENARIO_META = [
 _lock = threading.Lock()
 
 
+def _coerce_store(source):
+    """Accept a RegistryStore or a plain JSON path; always return a store.
+
+    A plain path keeps a *write-through* store: edits land in the SQLite DB
+    (persistent) and the JSON seed is refreshed so both stay in sync.
+    """
+    from .registry import RegistryStore
+    return source if isinstance(source, RegistryStore) else RegistryStore(json_path=source)
+
+
 def _result_payload(router, alert_id: str) -> dict:
     """Serialize a finished dispatch into the JSON the dashboard renders."""
     trace = [{"ts": line.ts, "kind": line.kind, "text": line.text}
@@ -116,12 +126,11 @@ def _ranking_payload(router) -> list[dict]:
     return rows
 
 
-def _effective_registry(registry_path: str, roster_path: str):
+def _effective_registry(source, roster_path: str):
     """Stakeholders dict with `on_call` overridden by the roster for today."""
-    from .registry import load_registry
     from .roster import effective_on_call, load_shifts
 
-    reg = load_registry(registry_path)
+    reg = _coerce_store(source).load()
     on_call = effective_on_call(reg, load_shifts(roster_path))
     for sid, st in reg.items():
         if st.on_call != on_call[sid]:
@@ -130,11 +139,11 @@ def _effective_registry(registry_path: str, roster_path: str):
     return reg
 
 
-def _registry_payload(registry_path: str, roster_path: str) -> list[dict]:
+def _registry_payload(source, roster_path: str) -> list[dict]:
     from . import settings
     from .registry import stakeholder_to_dict
     out = []
-    for sid, st in sorted(_effective_registry(registry_path, roster_path).items()):
+    for sid, st in sorted(_effective_registry(source, roster_path).items()):
         item = stakeholder_to_dict(st)
         for ch in item["channels"]:
             ch["webhook_missing"] = (
@@ -145,11 +154,10 @@ def _registry_payload(registry_path: str, roster_path: str) -> list[dict]:
     return out
 
 
-def _roster_payload(registry_path: str, roster_path: str) -> dict:
-    from .registry import load_registry
+def _roster_payload(source, roster_path: str) -> dict:
     from .roster import covering_shifts, effective_on_call, load_shifts
 
-    reg = load_registry(registry_path)
+    reg = _coerce_store(source).load()
     today = _date.today().isoformat()
     shifts = load_shifts(roster_path)
     eff = effective_on_call(reg, shifts, today)
@@ -164,7 +172,7 @@ def _roster_payload(registry_path: str, roster_path: str) -> dict:
     }
 
 
-def _scenario_list(registry_path: str) -> list[dict]:
+def _scenario_list(source) -> list[dict]:
     out = []
     for stem, desc in _SCENARIO_META:
         path = _SCENARIOS_DIR / f"{stem}.json"
@@ -187,11 +195,10 @@ def _scenario_list(registry_path: str) -> list[dict]:
     return out
 
 
-def _on_call_overrides(registry_path: str, roster_path: str) -> dict[str, bool]:
+def _on_call_overrides(source, roster_path: str) -> dict[str, bool]:
     """Full sid → on_call map (roster-aware) handed to every dispatch."""
-    from .registry import load_registry
     from .roster import effective_on_call, load_shifts
-    return effective_on_call(load_registry(registry_path), load_shifts(roster_path))
+    return effective_on_call(_coerce_store(source).load(), load_shifts(roster_path))
 
 
 def _next_stakeholder_id(reg: dict) -> str:
@@ -199,36 +206,37 @@ def _next_stakeholder_id(reg: dict) -> str:
     return f"STK-{max(nums) + 1:03d}" if nums else "STK-001"
 
 
-def _upsert_stakeholder(registry_path: str, item: dict):
-    from .registry import load_registry, parse_stakeholder, save_registry
-    reg = load_registry(registry_path)
+def _upsert_stakeholder(source, item: dict):
+    from .registry import parse_stakeholder
+    store = _coerce_store(source)
+    reg = store.load()
     if not item.get("id"):
         item = {**item, "id": _next_stakeholder_id(reg)}
     st = parse_stakeholder(item)
     reg[st.id] = st
-    save_registry(registry_path, reg)
+    store.save(reg)
     return st
 
 
-def _set_on_call(registry_path: str, sid: str, on: bool):
-    from .registry import (load_registry, parse_stakeholder, save_registry,
-                           stakeholder_to_dict)
-    reg = load_registry(registry_path)
+def _set_on_call(source, sid: str, on: bool):
+    from .registry import parse_stakeholder, stakeholder_to_dict
+    store = _coerce_store(source)
+    reg = store.load()
     if sid not in reg:
         raise KeyError(f"no stakeholder {sid}")
     item = {**stakeholder_to_dict(reg[sid]), "on_call": bool(on)}
     reg[sid] = parse_stakeholder(item)
-    save_registry(registry_path, reg)
+    store.save(reg)
     return reg[sid]
 
 
-def _delete_stakeholder(registry_path: str, sid: str) -> None:
-    from .registry import load_registry, save_registry
-    reg = load_registry(registry_path)
+def _delete_stakeholder(source, sid: str) -> None:
+    store = _coerce_store(source)
+    reg = store.load()
     if sid not in reg:
         raise KeyError(f"no stakeholder {sid}")
     del reg[sid]
-    save_registry(registry_path, reg)
+    store.save(reg)
 
 
 def _stable_alert_id(alert: dict) -> str:
@@ -242,25 +250,27 @@ def _stable_alert_id(alert: dict) -> str:
     return "custom-" + hashlib.sha1(canonical).hexdigest()[:12]
 
 
-def dispatch_scenario(stem: str, registry_path: str, min_reroute_delta: float = 1.5,
+def dispatch_scenario(stem: str, source, min_reroute_delta: float = 1.5,
                       on_call_overrides: Optional[dict[str, bool]] = None):
     path = _SCENARIOS_DIR / f"{stem}.json"
     if not path.exists():
         raise FileNotFoundError(f"unknown scenario: {stem}")
     data = json.loads(path.read_text())
+    store = _coerce_store(source)
     return run_scenario_data(
-        data, registry_path, ":memory:", alert_id=f"alert-{stem}",
-        min_reroute_delta=min_reroute_delta, on_call_overrides=on_call_overrides)
+        data, store.json_path, ":memory:", alert_id=f"alert-{stem}",
+        min_reroute_delta=min_reroute_delta, on_call_overrides=on_call_overrides,
+        stakeholders=store.load())
 
 
-def dispatch_custom(alert: dict, registry_path: str, min_reroute_delta: float = 1.5,
+def dispatch_custom(alert: dict, source, min_reroute_delta: float = 1.5,
                     on_call_overrides: Optional[dict[str, bool]] = None):
     # For an unknown domain, route to the most senior on-call stakeholder
     # (the "duty manager") instead of an arbitrary tie-broken candidate.
+    store = _coerce_store(source)
     duty_manager_ids = []
     try:
-        from .registry import load_registry
-        roster = load_registry(registry_path)
+        roster = store.load()
         on_call = [s for sid, s in roster.items() if not on_call_overrides or on_call_overrides[sid]]
         if on_call:
             top = max(on_call, key=lambda s: (s.seniority, s.id))
@@ -275,11 +285,12 @@ def dispatch_custom(alert: dict, registry_path: str, min_reroute_delta: float = 
         "duty_manager_ids": duty_manager_ids,
     }
     return run_scenario_data(
-        data, registry_path, ":memory:", alert_id=_stable_alert_id(alert),
-        min_reroute_delta=min_reroute_delta, on_call_overrides=on_call_overrides)
+        data, store.json_path, ":memory:", alert_id=_stable_alert_id(alert),
+        min_reroute_delta=min_reroute_delta, on_call_overrides=on_call_overrides,
+        stakeholders=store.load())
 
 
-def _summary_payload(router, alert_id: str, registry_path: str = "") -> dict:
+def _summary_payload(router, alert_id: str, source="") -> dict:
     """AI incident summary (Anthropic) with a deterministic fallback.
 
     Also runs the post-decision agentic layer (§22): triage brief over runbooks
@@ -291,7 +302,6 @@ def _summary_payload(router, alert_id: str, registry_path: str = "") -> dict:
     from .ai import fallback_incident_summary, prose_or_fallback
     from .agents import fallback_triage_brief, safety_check, supervise
     from .incidents import load_incidents, record_incident, similar_incidents
-    from .registry import load_registry
     from .runbooks import runbook_snippet
 
     state = router.ledger.plan_state(alert_id)
@@ -315,7 +325,7 @@ def _summary_payload(router, alert_id: str, registry_path: str = "") -> dict:
         runbook, similar)
     if supervision["mode"] == "ai":
         try:
-            registry = load_registry(registry_path) if registry_path else {}
+            registry = _coerce_store(source).load() if source else {}
             check = safety_check(supervision["triage"], notifications, registry)
         except Exception:
             check = {"ok": True, "issues": []}
@@ -335,11 +345,10 @@ def _summary_payload(router, alert_id: str, registry_path: str = "") -> dict:
     }
 
 
-def _save_shift(body: dict, registry_path: str, roster_path: str) -> list[dict]:
-    from .registry import load_registry
+def _save_shift(body: dict, source, roster_path: str) -> list[dict]:
     from .roster import add_shift, load_shifts, save_shifts, upsert_shift
     shifts = load_shifts(roster_path)
-    known = set(load_registry(registry_path))
+    known = set(_coerce_store(source).load())
     if body.get("id"):
         shifts = upsert_shift(shifts, body, known)
     else:
@@ -348,7 +357,9 @@ def _save_shift(body: dict, registry_path: str, roster_path: str) -> list[dict]:
     return shifts
 
 
-def build_handler(registry_path: str) -> type[BaseHTTPRequestHandler]:
+def build_handler(source) -> type[BaseHTTPRequestHandler]:
+    store = _coerce_store(source)
+
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, fmt: str, *args):  # quieter default logging
             pass
@@ -386,11 +397,11 @@ def build_handler(registry_path: str) -> type[BaseHTTPRequestHandler]:
             elif path in ("/style.css", "/app.js", "/favicon.svg"):
                 self._send_file(path.lstrip("/"))
             elif path == "/api/scenarios":
-                self._send_json({"scenarios": _scenario_list(registry_path)})
+                self._send_json({"scenarios": _scenario_list(store)})
             elif path == "/api/registry":
-                self._send_json({"stakeholders": _registry_payload(registry_path, _ROSTER_PATH)})
+                self._send_json({"stakeholders": _registry_payload(store, _ROSTER_PATH)})
             elif path == "/api/roster":
-                self._send_json(_roster_payload(registry_path, _ROSTER_PATH))
+                self._send_json(_roster_payload(store, _ROSTER_PATH))
             else:
                 self.send_error(404, "not found")
 
@@ -404,17 +415,17 @@ def build_handler(registry_path: str) -> type[BaseHTTPRequestHandler]:
             with _lock:
                 try:
                     if path == "/api/dispatch":
-                        overrides = _on_call_overrides(registry_path, _ROSTER_PATH)
+                        overrides = _on_call_overrides(store, _ROSTER_PATH)
                         if body.get("scenario"):
                             stem = body["scenario"]
                             router, alert_id = dispatch_scenario(
-                                stem, registry_path,
+                                stem, store,
                                 min_reroute_delta=float(body.get("min_reroute_delta", 1.5)),
                                 on_call_overrides=overrides)
                         elif body.get("alert"):
                             stem = "custom"
                             router, alert_id = dispatch_custom(
-                                body["alert"], registry_path,
+                                body["alert"], store,
                                 min_reroute_delta=float(body.get("min_reroute_delta", 1.5)),
                                 on_call_overrides=overrides)
                         else:
@@ -425,16 +436,16 @@ def build_handler(registry_path: str) -> type[BaseHTTPRequestHandler]:
                         payload = _result_payload(router, alert_id)
                         payload["scenario"] = stem
                         if body.get("summary"):
-                            payload.update(_summary_payload(router, alert_id, registry_path))
+                            payload.update(_summary_payload(router, alert_id, store))
                         self._send_json(payload)
                         return
 
                     if path == "/api/registry":
-                        st = _upsert_stakeholder(registry_path, body)
+                        st = _upsert_stakeholder(store, body)
                         self._send_json({"ok": True, "stakeholder": st.id})
                         return
                     if path == "/api/roster":
-                        shifts = _save_shift(body, registry_path, _ROSTER_PATH)
+                        shifts = _save_shift(body, store, _ROSTER_PATH)
                         self._send_json({"ok": True, "shifts": shifts})
                         return
                     m = re.match(r"^/api/registry/([^/]+)/on-call$", path)
@@ -443,7 +454,7 @@ def build_handler(registry_path: str) -> type[BaseHTTPRequestHandler]:
                         if "on_call" not in body:
                             self._send_json({"error": "missing 'on_call'"}, status=400)
                             return
-                        _set_on_call(registry_path, sid, bool(body["on_call"]))
+                        _set_on_call(store, sid, bool(body["on_call"]))
                         self._send_json({"ok": True, "stakeholder": sid})
                         return
                     self._send_json({"error": "not found"}, status=404)
@@ -460,7 +471,7 @@ def build_handler(registry_path: str) -> type[BaseHTTPRequestHandler]:
                 try:
                     m = re.match(r"^/api/registry/([^/]+)$", path)
                     if m:
-                        _delete_stakeholder(registry_path, m.group(1))
+                        _delete_stakeholder(store, m.group(1))
                         self._send_json({"ok": True})
                         return
                     m = re.match(r"^/api/roster/([^/]+)$", path)
@@ -487,10 +498,12 @@ def main(argv: Optional[list[str]] = None) -> None:
     # Render injects PORT; local runs default to 8000.
     parser.add_argument("--port", type=int, default=int(os.environ.get("PORT", "8000")))
     parser.add_argument("--registry", default=str(_REPO_ROOT / "registry.json"))
+    parser.add_argument("--registry-db", default=os.environ.get("ALERT_REGISTRY_DB"))
     parser.add_argument("--host", default="127.0.0.1")
     args = parser.parse_args(argv)
 
-    handler = build_handler(args.registry)
+    from .registry import RegistryStore
+    handler = build_handler(RegistryStore(args.registry, args.registry_db))
     server = ThreadingHTTPServer((args.host, args.port), handler)
     print(f"Alert Routing UI -> http://{args.host}:{args.port}/")
     print("Press Ctrl+C to stop.")

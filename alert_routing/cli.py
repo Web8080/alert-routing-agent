@@ -50,13 +50,15 @@ def run_scenario(
     alert_id: Optional[str] = None,
     min_reroute_delta: float = 1.5,
     prose=None,
+    stakeholders=None,
 ) -> tuple[Router, str]:
     data = json.loads(Path(scenario_path).read_text())
     stem = Path(scenario_path).stem
     aid = alert_id or data["alert"].get("alert_id") or f"alert-{stem}"
     return run_scenario_data(
         data, registry_path, ledger_path,
-        alert_id=aid, min_reroute_delta=min_reroute_delta, prose=prose)
+        alert_id=aid, min_reroute_delta=min_reroute_delta, prose=prose,
+        stakeholders=stakeholders)
 
 
 def run_scenario_data(
@@ -67,6 +69,7 @@ def run_scenario_data(
     min_reroute_delta: float = 1.5,
     prose=None,
     on_call_overrides: Optional[dict[str, bool]] = None,
+    stakeholders=None,
 ) -> tuple[Router, str]:
     """Drive the router through a scenario *dict* (scenario JSON schema).
 
@@ -80,7 +83,8 @@ def run_scenario_data(
                     duty_manager_ids=tuple(data.get("duty_manager_ids", [])))
     router = Router(registry_path, ledger_path, config=config, clock=clock,
                     presence=presence, prose=prose,
-                    on_call_overrides=on_call_overrides)
+                    on_call_overrides=on_call_overrides,
+                    registry=stakeholders)
 
     a = data["alert"]
     aid = alert_id or a.get("alert_id") or "alert-dispatch"

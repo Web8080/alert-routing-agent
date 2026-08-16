@@ -90,8 +90,10 @@ class Router:
         presence: Optional[Presence] = None,
         prose: Optional[callable] = None,
         on_call_overrides: Optional[dict[str, bool]] = None,
+        registry: Optional[dict[str, Stakeholder]] = None,
     ) -> None:
-        self.stakeholders: dict[str, Stakeholder] = load_registry(registry_path)
+        self.stakeholders: dict[str, Stakeholder] = (
+            registry if registry is not None else load_registry(registry_path))
         if on_call_overrides:
             for sid, on in on_call_overrides.items():
                 st = self.stakeholders.get(sid)

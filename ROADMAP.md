@@ -324,6 +324,9 @@ if FastAPI is absent, `build_app()` returns None (module still imports cleanly).
 - [x] **Registry/roster JSON API** — `POST /api/registry` (upsert),
       `DELETE /api/registry/{sid}`, `POST /api/registry/{sid}/on-call`,
       `POST/DELETE /api/roster`; shared `_lock` serializes concurrent writes.
+- [x] **SQLite registry store** — edits persist to `registry.db` (overridable
+      via `ALERT_REGISTRY_DB` / `--registry-db`) and are read by every
+      dispatch; the tracked `registry.json` seed is refreshed on save.
 - [x] **New tests (72 total)** — `test_roster.py` (shift validation, covering
       days, effective on-call), `test_registry_edit.py` (parse/save/upsert/
       on-call/delete round-trip), `test_runbooks.py` (runbook scorer),
@@ -464,7 +467,7 @@ Alert_routing/
 │   ├── agents.py            incidents.py      ✅ (§22 agentic layer)
 │   └── static/              (index.html/css/js/favicon — built, dark console)
 ├── incidents/                          ✅ (seeded triage KB)
-├── tests/                            ✅ 106 tests
+├── tests/                            ✅ 113 tests
 ├── .github/workflows/ci.yml          ✅ (unit tests + cross-seed determinism)
 └── Dockerfile                        ✅
 ```
@@ -481,12 +484,12 @@ in the "Build status" table.** As of this update:
    ROADMAP/BLUEPRINT §21).
 1b. **Agentic layer is DONE (Phase 9)** — two-lane AI (§22): read-only triage/
    comms/postmortem agents + supervisor + safety gate, `incidents/` KB,
-    dashboard triage rendering, 106 tests, docs in line (README/TESTING/
+    dashboard triage rendering, 113 tests, docs in line (README/TESTING/
     ROADMAP/BLUEPRINT §22).
 1c. **Simultaneous evaluation + new scenario domains is DONE (Phase 10)** — `R2B`
    batch fold (one decision window ⇒ one verdict), 7 scripted scenarios across
    inventory / contracts / sla / anomaly domains, 6 runbooks + 6 incidents,
-   6-feed sensors, 106 tests.
+   6-feed sensors, 113 tests.
 2. **Public repo is live** at `github.com/Web8080/alert-routing-agent` (CI
    green, Render-deployed dashboard).
 3. **Record/upload the ≤3-min walkthrough video** (script in BLUEPRINT.md §14).

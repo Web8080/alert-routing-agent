@@ -24,13 +24,13 @@ packages (already installed in the throwaway venv `/tmp/ar_srv`):
 
 ---
 
-## 1. The full test suite (106 tests)
+## 1. The full test suite (113 tests)
 
 ```bash
 python3 -m unittest discover
 ```
 
-**Expect:** `Ran 106 tests ... OK`. The suite covers:
+**Expect:** `Ran 113 tests ... OK`. The suite covers:
 
 | File | What it proves |
 |---|---|
@@ -223,6 +223,9 @@ last dispatch.
 7. **On-call today** chips reflect `roster.json` shifts (primary + backups).
 8. **+ add stakeholder** → save → appears in the list; reload the page and it's
    still there (persisted to `registry.json`).
+- [ ] Registry edits are **DB-backed**: a stakeholder edit appears in the SQLite
+      `registry.db` and in a fresh `RegistryStore` instance; `ALERT_REGISTRY_DB`
+      relocates the DB.
 9. Edit a stakeholder's channels/expertise or toggle **on-call** → save.
 10. **on-call shifts** → add a shift covering today → the chips update; dispatch
     again and the roster-aware on-call flags are used (a stakeholder who is
@@ -261,7 +264,7 @@ module import never fails).
 
 ## 6. Expected "definition of done" checklist
 
-- [ ] `python3 -m unittest discover` → `OK` (106)
+- [ ] `python3 -m unittest discover` → `OK` (113)
 - [ ] All 7 CLI scenarios end `plan=DELIVERED` with the correct R-rule fired
 - [ ] `PYTHONHASHSEED` loop → identical outputs (P5)
 - [ ] File-ledger crash test re-renders the original timeline (P1)

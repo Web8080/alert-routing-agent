@@ -36,7 +36,8 @@ class AlertIn(BaseModel):
 
 
 def build_app(registry_path: str = "registry.json",
-              ledger_path: Optional[str] = None) -> object | None:
+              ledger_path: Optional[str] = None,
+              store=None) -> object | None:
     """Build the FastAPI app.
 
     Uses ONE durable ledger shared by every request so ingest → query round-
@@ -58,7 +59,11 @@ def build_app(registry_path: str = "registry.json",
         alert = Alert(alert_id=alert_id, metric=payload.metric, value=payload.value,
                       threshold=payload.threshold, severity=payload.severity,
                       domain=payload.domain, context=payload.context, ts="http")
-        _, aid = run_scenario_from_alert(alert, registry_path, ledger_path)
+        stakeholders = None
+        if store is not None:
+            stakeholders = store.load()
+        _, aid = run_scenario_from_alert(alert, registry_path, ledger_path,
+                                         stakeholders=stakeholders)
         ledger = Ledger(ledger_path)
         return {"alert_id": aid, "plan_state": ledger.plan_state(aid),
                 "notifications": ledger.notifications_for(aid),
@@ -95,7 +100,8 @@ def _stable_alert_id(payload: AlertIn) -> str:
 
 
 def run_scenario_from_alert(alert: Alert, registry_path: str,
-                            ledger_path: str) -> tuple[object, str]:
+                            ledger_path: str,
+                            stakeholders=None) -> tuple[object, str]:
     """Run a single-alert dispatch (no scripted events → completes immediately)."""
     import tempfile
     import json as _json
@@ -111,7 +117,8 @@ def run_scenario_from_alert(alert: Alert, registry_path: str,
     try:
         from .ai import make_notification_prose
         return run_scenario(tmp, registry_path, ledger_path, alert_id=alert.alert_id,
-                            prose=make_notification_prose())
+                            prose=make_notification_prose(),
+                            stakeholders=stakeholders)
     finally:
         Path(tmp).unlink(missing_ok=True)
 
