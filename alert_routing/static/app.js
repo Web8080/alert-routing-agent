@@ -687,11 +687,30 @@ async function monTick() {
   if (!state.monOn) return;
   const data = await api("/api/monitor/tick", { method: "POST" });
   if (data.error) return;
-  state.monFeeds = data.feeds || [];
-  paintMonitorFeeds();
-  (data.dispatches || []).forEach((r) => state.monActivity.unshift(r));
-  paintMonitorActivity();
   monBadge(data.ai_enabled);
+  if (data.feeds) {
+    state.monFeeds = data.feeds || [];
+    paintMonitorFeeds();
+  }
+  if (data.busy || data.started) scheduleMonRefresh(900);
+}
+
+let monRefreshT = null;
+
+function scheduleMonRefresh(ms) {
+  if (!state.monOn) return;
+  if (monRefreshT) clearTimeout(monRefreshT);
+  monRefreshT = setTimeout(async () => {
+    monRefreshT = null;
+    if (!state.monOn) return;
+    const d = await api("/api/monitor");
+    if (d.error) return;
+    state.monFeeds = d.feeds || [];
+    state.monActivity = d.activity || [];
+    paintMonitorFeeds();
+    paintMonitorActivity();
+    monBadge(d.ai_enabled);
+  }, ms);
 }
 
 function monBadge(enabled) {
@@ -760,6 +779,7 @@ function startMonitor() {
 function stopMonitor() {
   state.monOn = false;
   if (state.monTimer) { clearInterval(state.monTimer); state.monTimer = null; }
+  if (monRefreshT) { clearTimeout(monRefreshT); monRefreshT = null; }
   $("mon-start").textContent = "▶ start monitoring";
   $("mon-state").textContent = "stopped";
   $("mon-state").classList.remove("ready");

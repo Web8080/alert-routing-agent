@@ -17,7 +17,10 @@ JSON API that reuses the exact same router code path as the CLI:
     DELETE /api/roster/<id>            → remove a shift
     GET  /api/monitor                  → monitor feeds + auto-dispatch activity
     POST /api/monitor/tick             → advance all feeds; submit breaches to
-                                         the deterministic router (Monitor view)
+                                         the deterministic router (Monitor view).
+                                         Delivery runs on a background thread:
+                                         the response is immediate, activity
+                                         arrives in the feed as it completes.
 
 Usage:
     python -m alert_routing.ui [--port 8000] [--registry registry.json]
@@ -30,6 +33,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import sys
 import threading
 from datetime import date as _date
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -65,6 +69,11 @@ _SCENARIO_META = [
 ]
 
 _lock = threading.Lock()
+# Non-blocking guard: at most ONE monitor tick runs at a time. Tick delivery is
+# async (real SMTP/Slack I/O runs on a background thread), so a slow transport
+# never blocks the HTTP response — the UI stays live and the activity feed
+# populates as each dispatch completes.
+_tick_guard = threading.Lock()
 
 
 def _coerce_store(source):
@@ -415,7 +424,7 @@ def build_handler(source) -> type[BaseHTTPRequestHandler]:
             elif path == "/api/monitor":
                 self._send_json({
                     "feeds": monitor.feed_payload(),
-                    "activity": [r.to_dict() for r in monitor.records],
+                    "activity": monitor.records_snapshot(),
                     "ai_enabled": _ai_enabled(),
                 })
             else:
@@ -465,10 +474,30 @@ def build_handler(source) -> type[BaseHTTPRequestHandler]:
                         self._send_json({"ok": True, "shifts": shifts})
                         return
                     if path == "/api/monitor/tick":
-                        dispatches = monitor.tick()
+                        if not _tick_guard.acquire(blocking=False):
+                            self._send_json({
+                                "busy": True,
+                                "feeds": monitor.feed_payload(),
+                                "activity_count": len(monitor.records),
+                                "ai_enabled": _ai_enabled(),
+                            })
+                            return
+
+                        def _run_tick() -> None:
+                            try:
+                                monitor.tick()
+                            except Exception as exc:
+                                # never let a background tick kill the UI
+                                print(f"[monitor] tick failed: {exc}",
+                                      file=sys.stderr)
+                            finally:
+                                _tick_guard.release()
+
+                        threading.Thread(target=_run_tick, name="monitor-tick",
+                                         daemon=True).start()
                         self._send_json({
+                            "started": True,
                             "feeds": monitor.feed_payload(),
-                            "dispatches": dispatches,
                             "activity_count": len(monitor.records),
                             "ai_enabled": _ai_enabled(),
                         })

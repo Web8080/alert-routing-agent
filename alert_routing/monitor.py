@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import json
 import tempfile
+import threading
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
@@ -155,6 +156,7 @@ class AutoMonitor:
         self.seq = 0
         self.feeds = [_feed_for_stem(stem) for stem in _scenario_stems()]
         self.records: list[DispatchRecord] = []
+        self._records_lock = threading.Lock()
 
     @staticmethod
     def _temp_ledger() -> str:
@@ -192,9 +194,16 @@ class AutoMonitor:
                 min_reroute_delta=self.min_reroute_delta,
                 on_call_overrides=overrides, stakeholders=reg)
             record = self._record(router, feed, aid)
-            self.records.append(record)
-            results.append(record.to_dict())
+            with self._records_lock:
+                self.records.append(record)
+                results.append(record.to_dict())
         return results
+
+    def records_snapshot(self) -> list[dict]:
+        """Thread-safe copy of the activity stream (delivery runs on a
+        background thread, so the UI reads the ledger from another thread)."""
+        with self._records_lock:
+            return [r.to_dict() for r in self.records]
 
     def _record(self, router, feed: Feed, aid: str) -> DispatchRecord:
         from . import settings

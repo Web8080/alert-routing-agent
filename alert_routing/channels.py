@@ -9,10 +9,21 @@ uniform interface, so real SMTP/Slack/Twilio adapters are drop-in replacements.
 from __future__ import annotations
 
 import sys
+import threading
 
 from . import settings
 from .models import ChannelState, DeliveryReceipt, Notification
 from .presence import Presence
+
+# One persistent SMTP connection shared across every send (created lazily on the
+# first real delivery, reconnected on error). Delivery now runs on background
+# threads, so every send is serialized behind this lock — no per-message
+# connect/login cost, and no concurrent use of a socket that isn't thread-safe.
+_SMTP_LOCK = threading.Lock()
+_smtp_conn = None
+_smtp_key = None
+_SMTP_TIMEOUT = 15
+_SLACK_TIMEOUT = 10
 
 
 class ChannelError(RuntimeError):
@@ -142,22 +153,51 @@ class RealEmailAdapter(EmailAdapter):
         msg["To"] = recipient
         msg.set_content(notification.body)
 
-        host = settings.get("ALERT_SMTP_HOST")
-        port = int(settings.get("ALERT_SMTP_PORT", "587"))
-        user = settings.get("ALERT_SMTP_USER")
-        password = settings.get("ALERT_SMTP_PASS")
+        with _SMTP_LOCK:
+            try:
+                conn = _smtp_connection()
+                conn.send_message(msg)
+            except Exception:
+                _close_smtp()
+                conn = _smtp_connection()  # one reconnect attempt on transient failure
+                conn.send_message(msg)
 
-        if settings.get("ALERT_SMTP_SSL", "").lower() in ("1", "true", "yes"):
-            with smtplib.SMTP_SSL(host, port, timeout=30) as s:
-                if user:
-                    s.login(user, password)
-                s.send_message(msg)
-        else:
-            with smtplib.SMTP(host, port, timeout=30) as s:
-                s.starttls()
-                if user:
-                    s.login(user, password)
-                s.send_message(msg)
+
+def _smtp_connection():
+    """Return the pooled SMTP connection, (re)connecting once if config changed."""
+    global _smtp_conn, _smtp_key
+    import smtplib
+
+    host = settings.get("ALERT_SMTP_HOST")
+    port = int(settings.get("ALERT_SMTP_PORT", "587"))
+    user = settings.get("ALERT_SMTP_USER")
+    password = settings.get("ALERT_SMTP_PASS")
+    use_ssl = settings.get("ALERT_SMTP_SSL", "").lower() in ("1", "true", "yes")
+
+    key = (host, port, user, use_ssl)
+    if _smtp_conn is not None and _smtp_key == key:
+        return _smtp_conn
+    _close_smtp()
+    _smtp_key = key
+    if use_ssl:
+        conn = smtplib.SMTP_SSL(host, port, timeout=_SMTP_TIMEOUT)
+    else:
+        conn = smtplib.SMTP(host, port, timeout=_SMTP_TIMEOUT)
+        conn.starttls()
+    if user:
+        conn.login(user, password)
+    _smtp_conn = conn
+    return conn
+
+
+def _close_smtp() -> None:
+    global _smtp_conn
+    if _smtp_conn is not None:
+        try:
+            _smtp_conn.quit()
+        except Exception:
+            pass
+        _smtp_conn = None
 
 
 class RealSlackAdapter(SlackAdapter):
@@ -210,7 +250,7 @@ class RealSlackAdapter(SlackAdapter):
         payload = json.dumps({"text": notification.body}).encode()
         req = urllib.request.Request(webhook, data=payload,
                                      headers={"Content-Type": "application/json"})
-        with urllib.request.urlopen(req, timeout=30) as resp:
+        with urllib.request.urlopen(req, timeout=_SLACK_TIMEOUT) as resp:
             if resp.status >= 400:
                 raise RuntimeError(f"webhook HTTP {resp.status}")
 
