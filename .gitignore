@@ -13,7 +13,7 @@ venv/
 alert_ledger_*.db
 
 # Private local notes — NEVER commit or push
-[Ii]NTERVIEW_GUIDE.md
+[Ii]N_GUIDE.md
 
 # Tooling
 .DS_Store
