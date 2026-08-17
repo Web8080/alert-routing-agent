@@ -178,16 +178,27 @@ left-sidebar nav:
   `ALERT_REGISTRY_DB` or `--registry-db`) and are read back by every dispatch;
   the git-tracked `registry.json` seed is refreshed on each save.
 
-**Monitor** — an AI watcher over every scenario feed, hands the work to the
-deterministic router with one click (start/stop; no per-alert picking):
-- Each bundled scenario becomes a **telemetry feed**; values drift over a
-  virtual clock and breach their thresholds on their own schedule.
-- Every breach is automatically submitted to the deterministic routing agent,
-  which does all the routing (who/why/how). Selection order is deterministic
-  (severity, then deviation) — the AI never decides or alters routing.
+**Monitor** — one click starts the AI watcher; the engine runs itself:
+
+- Each bundled scenario becomes a **telemetry feed**; values drift and breach
+  their thresholds on their own schedule (no manual picking).
+- Every breach is automatically submitted to the deterministic routing agent —
+  the same engine the 121 tests exercise. Selection order is deterministic
+  (severity first, then deviation); the AI watcher never decides or alters who
+  is paged.
+- **Auto-dispatch activity** streams live into the dashboard as each breach is
+  routed: the on-call person chosen, which rule fired (R1 channel retry, R2
+  abort + reroute, R5 no-downgrade, etc.), the plan state, and the rule
+  rationale — no black box.
 - When AI is enabled, the watcher adds a one-line advisory note per dispatch
-  (deterministic fallback when off or unreachable). All activity lands in one
-  shared ledger and streams into the activity feed.
+  (deterministic fallback when off or unreachable). The badge reads
+  "AI watcher live (advisory)".
+- Delivery is **real and async**: alerts go out over Slack (preferred channel)
+  or email (fallback) to today's on-call shift. If a channel can't deliver,
+  the router visibly falls back to the next channel from the frozen snapshot
+  (R1/R2) — you watch the guarantee happen live.
+- All activity lands in one shared durable ledger and is queryable from the
+  Policy and timeline views.
 
 All four views read and write through the same stdlib `http.server` API
 (`/api/scenarios`, `/api/registry`, `/api/roster`, `/api/dispatch`,
@@ -340,6 +351,28 @@ python -m alert_routing.propose_scenario "a channel fails then recovers mid-flig
 The LLM drafts a candidate scenario; the deterministic suite ADOPTS or
 REJECTS it (clean run + P2 no-dup + P5 reproducibility + exercises an
 availability change). Adopted scenarios land in `scenarios/proposed/`.
+
+### Challenges hit turning on live delivery (and the fixes)
+
+Shipped in the deployed service; full write-up in [`BLUEPRINT.md`](BLUEPRINT.md)
+§21.6 and the interview guide §7.5.
+
+- **Synchronous delivery froze the UI.** Real SMTP/Slack I/O ran inside the
+  request thread, so one slow transport stalled a Monitor tick for 100s+.
+  *Fix:* the tick now returns immediately and delivery runs on a single
+  guarded background thread; the activity feed populates as each dispatch
+  completes.
+- **The SMTP relay blocked the cloud host.** Emails relayed fine from a dev
+  machine but timed out from Render's datacenter (the provider refuses cloud
+  egress IPs). *Fix:* one pooled persistent SMTP connection + bounded timeouts
+  (15s/10s), and the R1/R2 channel-fallback — until then a stub — became a
+  *visible* live behavior. A Render-friendly relay (Gmail/Outlook app password)
+  is the drop-in for cloud egress.
+- **Slack webhooks silently dead (404).** *Fix:* probe each webhook URL with a
+  direct POST (HTTP 200) before wiring it in.
+- **Live registry edits lost on redeploy.** Render free has no persistent
+  disk, so dashboard edits rebuilt from seed. *Fix:* `registry.json` is the
+  source of truth; edits are re-synced into the seed.
 
 ## What I'd do next with more time
 
