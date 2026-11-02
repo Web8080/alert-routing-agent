@@ -1,0 +1,64 @@
+item,type,decision,reason,grade
+Anthropic 30 Jul 2026 cyber eval incidents post,primary incident,include,primary disclosure,P
+OpenAI 21 Jul incident post,primary incident,include,primary disclosure,S1
+OpenAI 26 Aug road-ahead post and technical report,primary incident,include,primary report,S1
+Hugging Face security-incident-july-2026 blog,primary incident,include,affected-party disclosure,S1
+METR 26 Aug investigation (blog and PDF),independent analysis,include,independent review,S1
+Redwood Research investigation post,independent analysis,include,independent review,S1
+Anthropic 9 Sep fourth-incident report,primary incident,include,primary (not located directly),S2
+Google Gemini/Irregular disclosure 18 Sep,primary incident,include as corroboration,primary not located,S2
+Modal CTO statement (Bloomberg/Fortune),affected party quote,include,direct quote in press,S2
+Reuters on expanded OpenAI review,press,include as context,secondary,S2
+OECD AI incident entry 2026-07-31,incident database,include as context,conflicts with Reuters,S2
+AIID 1685 and 1700,incident database,include as context,secondary,S2
+Claude Mythos Preview system card escape,incident,exclude for now,accounts conflict; system card not read,S2
+Replit SaaStr deletion 2025,incident,include as background,illustrates instruction vs enforcement,S2
+GTG-1002 campaign 2025,incident,exclude,human misuse not agent overreach,S2
+EchoLeak / Amazon Q 2025,incident,exclude for now,no usable result,U
+Progent 2504.11703,paper,include,per-call authorisation baseline,S1
+AgentSpec 2503.18666,paper,include,runtime enforcement,S1
+Conseca,paper,exclude for now,not located,U
+CaMeL 2025,paper,include,capability/flow defence,S1
+Design patterns for securing LLM agents 2025,paper,include,design patterns,S1
+FIDES,paper,exclude for now,not located,U
+AgentFlow 2608.22868,paper,include,flow-centric enforcement,S1
+Solver-aided verification 2603.20449,paper,include,per-call verification,S1
+ActPlane 2606.25189,paper,include,OS-level enforcement,S1
+Before the Tool Call 2603.20953,paper,include,pre-action authorisation; cites PCAS,S1
+Agentao 2608.13574,paper,exclude,harness engineering; no evaluation focus,S1
+PolicyGuide 2608.19861,paper,exclude for now,method not visible,U
+What Can Be Enforced 2607.22868,paper,include,enforcement theory,S1
+Towards Verifiably Safe Tool Use 2601.08012,paper,include,verification,S1
+CapScope 2609.08371,paper,include,reference monitor,S1
+ChainCaps 2605.26542,paper,include,composition,S1
+ACLE-MCP 2609.02690,paper,include,shared-state mention,S1
+Claws in Plain Sight 2608.20658,paper,include,provenance checks,S1
+MasDrift 2608.07556,paper,include,multi-agent authorisation,S1
+APPA 2607.24625,paper,include,IFC,S1
+Adaptive eval of out-of-band defences 2606.26479,paper,include,independent reproduction,S1
+Raftari 2610.12463,paper,include,closest incident-based framework,S1
+When the Agent Is the Adversary 2604.23425,paper,include,containment requirements,S1
+Apart egress conformance,unreviewed project,include,egress predicates,S2
+SandboxEscapeBench 2603.02277,paper,include,containment capability,S1
+AI code sandboxes comparison 2606.08433,paper,include,sandbox engines,S1
+Embedded Assessments 2609.25413,paper,exclude,not about enforcement,S1
+Benchmark contamination taxonomy 2608.29463,paper,exclude,tangential,S1
+Activation-based collusion detection 2604.01151,paper,include,collusion,S1
+Audit the Whisper 2510.04303,paper,include,steganographic collusion,S1
+COLOSSEUM 2602.15198,paper,include,collusion audit,S1
+Voluntary collusion 2605.27593,paper,exclude,duplicative,S1
+Tool use steganography 2606.28425,paper,include,tool/artefact channels,S1
+Covert collusion steganalysis 2608.02698,paper,include,black-box detection,S1
+Strategic confinement problem 2606.09931,paper,include,confinement theory,S1
+Qin et al tamper with traces 2609.30266,paper,include,closest prior work,S1
+Agent Flight Recorder 2609.01931,paper,include,evidence integrity,S1
+NovaFabric 2609.12582,paper,include,evidence replay,S1
+Black Box for Agentic Processes 2609.04017,paper,include,governance evidence,S1
+OpenClaw PRISM 2603.11853,paper,include,runtime layer with audit,S1
+AgentSight 2508.02736,paper,include,boundary tracing,S1
+EU AI Act Art. 12,regulation,include,record-keeping requirement,S2
+OWASP Agentic Top 10 Dec 2025,guidance,include,risk vocabulary,S2
+NIST CAISI agent initiative / NCCoE concept paper,guidance,include,identity and authorisation,S2
+Vendor blogs (multi-tenant guides; DEV posts; dev.to),grey,exclude,no primary evidence,S2
+Press explainers (cellcog; pinggy; noqta; etc.),grey,exclude,secondary duplicates,S2
+CSA research notes,grey,include as context,analyst synthesis,S2

@@ -1,0 +1,35 @@
+id,stage,date,mode,query
+1,1,2026-10-26,extended,OpenAI Hugging Face model evaluation security incident July 2026
+2,1,2026-10-26,standard,Hugging Face statement OpenAI evaluation models accessed production infrastructure
+3,1,2026-10-26,standard,huggingface.co blog security incident July 16 2026 autonomous intrusion
+4,1,2026-10-26,extended,OpenAI August 26 2026 Hugging Face incident full report contributing factors unauthorized communication channel agents
+5,1,2026-10-26,standard,OpenAI additional AI agent containment breaches expanded review 2026
+6,1,2026-10-26,standard,Anthropic PyPI transcript release METR third-party review cyber evaluation incidents August 2026
+7,1,2026-10-26,standard,anthropic.com September 9 2026 cybersecurity evaluation incidents fourth incident
+8,1,2026-10-26,standard,METR Redwood Research analysis OpenAI Hugging Face incident ExploitGym August 2026
+9,1,2026-10-26,standard,Modal OpenAI agents breach statement 2026
+10,1,2026-10-26,extended,Progent; AgentSpec runtime enforcement; Conseca contextual agent security policies
+11,1,2026-10-26,standard,CaMeL Defeating Prompt Injections by Design; FIDES; design patterns for securing LLM agents
+12,1,2026-10-26,extended,arXiv 2026 runtime policy enforcement LLM agents tool calls benchmark compliance governance policy-as-code
+13,1,2026-10-26,extended,arXiv 2026 agent sandbox isolation verification egress network boundary evaluation harness containment
+14,1,2026-10-26,extended,LLM agents covert channel collusion shared infrastructure multi-agent unsanctioned communication detection
+15,1,2026-10-26,standard,sandbox escape benchmark LLM agents container escape evaluation UK AISI
+16,1,2026-10-26,extended,From Reactive Containment to Proactive Assurance arXiv 2610.12463
+17,1,2026-10-26,standard,April 2026 frontier model sandbox escape incident
+18,1,2026-10-26,standard,Google DeepMind agent security incident 2026 evaluation external systems disclosure
+19,1,2026-10-26,extended,Raftari Boundary Assurance Stack PASAC hypotheses
+20,1,2026-10-26,standard,Replit agent production database July 2025; EchoLeak CVE-2025-32711; Amazon Q extension July 2025
+21,1,2026-10-26,standard,OWASP Top 10 Agentic Applications 2026; NIST NCCoE agent identity authorization concept paper
+22,1,2026-10-26,extended,per-call tool authorization shared state composition reference monitor limitation arXiv 2026
+23,1,2026-10-26,standard,What Can Be Enforced? Certified Runtime Safety for Tool-Using Agents
+24,1,2026-10-26,standard,Anthropic GTG-1002 AI-orchestrated campaign November 2025
+25,2,2026-10-26,extended,OpenAI agents Artifactory message board report details
+26,2,2026-10-26,extended,METR report OpenAI Hugging Face incident message board permissions
+27,2,2026-10-26,extended,Redwood Research brief independent investigation findings
+28,2,2026-10-26,extended,tamper-evident audit log LLM agent tool calls out-of-band recording transcript integrity arXiv
+29,2,2026-10-26,extended,LLM Agents Can Easily Tamper With Their Own Traces 2609.30266
+30,2,2026-10-26,extended,AgentSight eBPF observability; reconcile agent transcript with system effects
+31,2,2026-10-26,extended,multi-tenant shared service isolation AI agents confinement problem Lampson
+32,2,2026-10-26,extended,Adaptive Evaluation of Out-of-Band Defenses 2606.26479; agent safety benchmarks runtime enforcement
+33,2,2026-10-26,standard,NovaFabric 2609.12582; Agent Flight Recorder 2609.01931 completeness
+34,2,2026-10-26,standard,EU AI Act Article 12 record-keeping; ISO/IEC 42001 Annex A logging

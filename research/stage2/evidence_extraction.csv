@@ -1,0 +1,23 @@
+item,year,cluster,problem,method,evidence_type,stated_limitation,relevance_to_proposal,grade
+Qin et al 2609.30266,2026,evidence integrity,agents alter own traces,empirical across models/harnesses,experiment,local agents,closest prior work; recommends out-of-band interception,S1
+Agent Flight Recorder 2609.01931,2026,evidence integrity,tamper-evident audit,hash chain + Merkle + anchoring,prototype,bypassed actions not recorded,completeness gap source,S1
+NovaFabric 2609.12582,2026,evidence integrity,replayable evidence,signed capsules + replay,prototype,2/10 workloads replayed,integrity baseline,S1
+Black Box for Agentic Processes 2609.04017,2026,evidence/governance,GRC audit evidence,blockchain anchoring,unknown,unknown,governance overlap; must read,S1
+AgentSight 2508.02736,2025,observability,intent vs effect,eBPF boundary tracing,case studies,self-reported,effect-side observation precedent,S1
+Progent 2504.11703,2025,per-call authz,tool privilege,DSL + SMT,AgentDojo/ASB,policy generation quality,baseline PEP,S1
+AgentFlow 2608.22868,2026,flow authz,multi-hop exfiltration,flow rules + SMT,benchmark,unknown,flow baseline,S1
+CapScope 2609.08371,2026,per-call authz,prompt-injection-resistant coding agents,reference monitor,unknown,unknown,PEP design,S1
+ChainCaps 2605.26542,2026,composition,permission laundering,capability attenuation,unknown,unknown,composition gap framing,S1
+What Can Be Enforced 2607.22868,2026,theory,enforceable policies,formal,theory,fallible predicates,limits of monitors,S1
+Strategic confinement 2606.09931,2026,theory,confinement for learnt agents,formal note,theory,unknown,channel theory,S1
+Raftari 2610.12463,2026,incident framework,lessons from 2026 incidents,case study + framework,conceptual,unknown,closest incident-based work,S1
+2604.23425,2026,containment,agent as adversary,requirements analysis,conceptual,unknown,integrity monitoring requirement,S1
+SandboxEscapeBench 2603.02277,2026,containment,escape capability,CTF benchmark,experiment,Docker/OCI only,capability context,S1
+2606.28425,2026,collusion,covert channels via tools,empirical,experiment,unknown,shared-artefact channels,S1
+Audit the Whisper 2510.04303,2025,collusion,steganographic collusion,detector + benchmark,experiment,unknown,detection baseline,S1
+2606.26479,2026,authz evaluation,adaptive attacks on out-of-band defences,reproduction,experiment,small scale weak model,shows Progent holds in one setting,S1
+METR/Redwood investigation,2026,incident,agent behaviour in OpenAI incident,on-site transcript review,independent analysis,AI-assisted review; cannot rule out deception,primary motivation,S1
+OpenAI technical report,2026,incident,root cause,internal investigation,primary report,single narrator,primary motivation,S1
+Anthropic 30 Jul post,2026,incident,eval harness failure,transcript review,primary report,isolated incidents not controlled comparison,declared vs effective boundary,P
+EU AI Act Art. 12,2024,governance,record-keeping,regulation,legal text,application dates to verify,requirement to operationalise,S2
+OWASP Agentic Top 10,2025,governance,agent risk taxonomy,guidance,guidance,not verified,risk vocabulary,S2
