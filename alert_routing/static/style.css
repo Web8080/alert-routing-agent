@@ -1,6 +1,7 @@
 /* Alert Routing Agent — operations console */
 
 :root {
+  color-scheme: dark;
   --bg: #0d1117;
   --panel: #161b22;
   --panel2: #1c2128;
@@ -12,7 +13,77 @@
   --ok: #3fb950;
   --warn: #d29922;
   --danger: #f85149;
+  --primary: #1f6feb;
+  --primary-hover: #388bfd;
+  --purple: #d2a8ff;
+  --blue2: #79c0ff;
+  --tint: rgba(255, 255, 255, 0.02);
+  --accent-bg: rgba(88, 166, 255, 0.1);
+  --accent-bg2: rgba(88, 166, 255, 0.12);
+  --accent-flash: rgba(88, 166, 255, 0.35);
+  --warn-bg: rgba(210, 153, 34, 0.08);
+  --danger-bg: rgba(248, 81, 73, 0.08);
+  --danger-bg2: rgba(248, 81, 73, 0.06);
+  --ok-bg: rgba(63, 185, 80, 0.1);
   --mono: "SFMono-Regular", ui-monospace, Menlo, Consolas, monospace;
+}
+
+/* Light theme. Applied when the user picks it (data-theme="light"), or when
+   the OS prefers light and the user has not picked a theme explicitly. */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #ffffff;
+  --panel: #f6f8fa;
+  --panel2: #eaeef2;
+  --border: #d0d7de;
+  --border2: #d8dee4;
+  --text: #1f2328;
+  --dim: #59636e;
+  --accent: #0969da;
+  --ok: #1a7f37;
+  --warn: #9a6700;
+  --danger: #cf222e;
+  --primary: #0969da;
+  --primary-hover: #0550ae;
+  --purple: #8250df;
+  --blue2: #0550ae;
+  --tint: rgba(31, 35, 40, 0.03);
+  --accent-bg: rgba(9, 105, 218, 0.08);
+  --accent-bg2: rgba(9, 105, 218, 0.1);
+  --accent-flash: rgba(9, 105, 218, 0.28);
+  --warn-bg: rgba(154, 103, 0, 0.1);
+  --danger-bg: rgba(207, 34, 46, 0.08);
+  --danger-bg2: rgba(207, 34, 46, 0.06);
+  --ok-bg: rgba(26, 127, 55, 0.1);
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    color-scheme: light;
+    --bg: #ffffff;
+    --panel: #f6f8fa;
+    --panel2: #eaeef2;
+    --border: #d0d7de;
+    --border2: #d8dee4;
+    --text: #1f2328;
+    --dim: #59636e;
+    --accent: #0969da;
+    --ok: #1a7f37;
+    --warn: #9a6700;
+    --danger: #cf222e;
+    --primary: #0969da;
+    --primary-hover: #0550ae;
+    --purple: #8250df;
+    --blue2: #0550ae;
+    --tint: rgba(31, 35, 40, 0.03);
+    --accent-bg: rgba(9, 105, 218, 0.08);
+    --accent-bg2: rgba(9, 105, 218, 0.1);
+    --accent-flash: rgba(9, 105, 218, 0.28);
+    --warn-bg: rgba(154, 103, 0, 0.1);
+    --danger-bg: rgba(207, 34, 46, 0.08);
+    --danger-bg2: rgba(207, 34, 46, 0.06);
+    --ok-bg: rgba(26, 127, 55, 0.1);
+  }
 }
 
 * { box-sizing: border-box; }
@@ -43,8 +114,8 @@ button {
 }
 button:hover:not(:disabled) { border-color: var(--accent); }
 button:disabled { opacity: 0.45; cursor: default; }
-button.primary { background: #1f6feb; border-color: #1f6feb; font-weight: 600; }
-button.primary:hover:not(:disabled) { background: #388bfd; }
+button.primary { background: var(--primary); border-color: var(--primary); color: #fff; font-weight: 600; }
+button.primary:hover:not(:disabled) { background: var(--primary-hover); }
 button.ghost { background: transparent; }
 
 select {
@@ -116,7 +187,7 @@ select {
 .side-nav a:hover { color: var(--text); background: var(--panel2); text-decoration: none; }
 .side-nav a.active {
   color: var(--accent);
-  background: rgba(88, 166, 255, 0.1);
+  background: var(--accent-bg);
   border-left-color: var(--accent);
   font-weight: 600;
 }
@@ -246,7 +317,7 @@ input[type="range"] { accent-color: var(--accent); width: 120px; }
   color: var(--dim);
   font-family: var(--mono);
   font-size: 11px;
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--tint);
 }
 .kv dd { font-family: var(--mono); font-size: 12px; }
 .kv dd:last-of-type, .kv dt:last-of-type { border-bottom: none; }
@@ -323,16 +394,16 @@ details button { margin-top: 6px; }
   letter-spacing: 0.08em;
   color: var(--dim);
 }
-.trace-line.hot { background: rgba(88, 166, 255, 0.12); border-radius: 4px; }
+.trace-line.hot { background: var(--accent-bg2); border-radius: 4px; }
 .trace-line.flash { animation: flash 0.5s ease; }
-@keyframes flash { 0% { background: rgba(88, 166, 255, 0.35); } 100% { background: rgba(88, 166, 255, 0.12); } }
+@keyframes flash { 0% { background: var(--accent-flash); } 100% { background: var(--accent-bg2); } }
 
 .k-ingress { color: var(--accent); }
-.k-rank .k, .k-rank { color: #d2a8ff; }
+.k-rank .k, .k-rank { color: var(--purple); }
 .k-policy .k, .k-policy { color: var(--warn); }
 .k-send .k, .k-send { color: var(--ok); }
-.k-event { color: #79c0ff; }
-.k-ledger .k, .k-ledger { color: #d2a8ff; }
+.k-event { color: var(--blue2); }
+.k-ledger .k, .k-ledger { color: var(--purple); }
 .k-summary { color: var(--dim); }
 
 /* events */
@@ -362,7 +433,7 @@ table.rank th {
   top: -12px;
 }
 table.rank td { font-size: 12px; padding: 5px 12px; }
-tr.current td { background: rgba(88, 166, 255, 0.12); }
+tr.current td { background: var(--accent-bg2); }
 tr.gated-row td { opacity: 0.55; }
 
 .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
@@ -451,9 +522,9 @@ pre.timeline {
   font-size: 12px;
 }
 .rule b { font-family: var(--mono); color: var(--accent); }
-.rule.on { border-color: var(--warn); color: var(--text); background: rgba(210, 153, 34, 0.08); }
+.rule.on { border-color: var(--warn); color: var(--text); background: var(--warn-bg); }
 .rule.on b { color: var(--warn); }
-.rule.r5.on { border-color: var(--danger); background: rgba(248, 81, 73, 0.08); }
+.rule.r5.on { border-color: var(--danger); background: var(--danger-bg); }
 .rule.r5.on b { color: var(--danger); }
 
 .banner { margin-top: 16px; font-family: var(--mono); font-size: 13px; }
@@ -755,7 +826,7 @@ button.danger:hover:not(:disabled) { border-color: var(--danger); }
 .oc-toggle.on {
   border-color: var(--ok);
   color: var(--ok);
-  background: rgba(63, 185, 80, 0.1);
+  background: var(--ok-bg);
 }
 
 .reg-status {
@@ -828,7 +899,7 @@ button.danger:hover:not(:disabled) { border-color: var(--danger); }
   border-bottom: 1px solid var(--border2);
 }
 .mon-feed td { padding: 7px 8px; border-bottom: 1px solid var(--border2); font-size: 12.5px; }
-.mon-feed tr.breach td { background: rgba(248, 81, 73, 0.06); }
+.mon-feed tr.breach td { background: var(--danger-bg2); }
 .mon-feed .mono { font-family: var(--mono); }
 .breach-tag { color: var(--danger); font-family: var(--mono); font-size: 11px; font-weight: 700; margin-left: 4px; }
 
