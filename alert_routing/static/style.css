@@ -28,8 +28,8 @@
   --mono: "SFMono-Regular", ui-monospace, Menlo, Consolas, monospace;
 }
 
-/* Light theme. Applied when the user picks it (data-theme="light"), or when
-   the OS prefers light and the user has not picked a theme explicitly. */
+/* Dark is the default. Light applies only when the user switches to it
+   (data-theme="light"); the choice is remembered. */
 :root[data-theme="light"] {
   color-scheme: light;
   --bg: #ffffff;
@@ -55,35 +55,6 @@
   --danger-bg: rgba(207, 34, 46, 0.08);
   --danger-bg2: rgba(207, 34, 46, 0.06);
   --ok-bg: rgba(26, 127, 55, 0.1);
-}
-
-@media (prefers-color-scheme: light) {
-  :root:not([data-theme="dark"]) {
-    color-scheme: light;
-    --bg: #ffffff;
-    --panel: #f6f8fa;
-    --panel2: #eaeef2;
-    --border: #d0d7de;
-    --border2: #d8dee4;
-    --text: #1f2328;
-    --dim: #59636e;
-    --accent: #0969da;
-    --ok: #1a7f37;
-    --warn: #9a6700;
-    --danger: #cf222e;
-    --primary: #0969da;
-    --primary-hover: #0550ae;
-    --purple: #8250df;
-    --blue2: #0550ae;
-    --tint: rgba(31, 35, 40, 0.03);
-    --accent-bg: rgba(9, 105, 218, 0.08);
-    --accent-bg2: rgba(9, 105, 218, 0.1);
-    --accent-flash: rgba(9, 105, 218, 0.28);
-    --warn-bg: rgba(154, 103, 0, 0.1);
-    --danger-bg: rgba(207, 34, 46, 0.08);
-    --danger-bg2: rgba(207, 34, 46, 0.06);
-    --ok-bg: rgba(26, 127, 55, 0.1);
-  }
 }
 
 * { box-sizing: border-box; }

@@ -889,14 +889,12 @@ document.querySelectorAll("#side-nav a").forEach((link) => {
     switchPage(link.dataset.page);
   });
 });
-/* Light / dark theme. Follows the OS until the user picks one; the choice is
-   remembered in localStorage (wrapped: storage can be blocked). */
+/* Light / dark theme. Dark is the default; the user's choice is remembered in
+   localStorage (wrapped: storage can be blocked). */
 function initTheme() {
   const btn = $("theme-toggle");
   if (!btn) return;
-  const mq = window.matchMedia ? window.matchMedia("(prefers-color-scheme: light)") : null;
-  const current = () =>
-    document.documentElement.getAttribute("data-theme") || (mq && mq.matches ? "light" : "dark");
+  const current = () => document.documentElement.getAttribute("data-theme") || "dark";
   const paint = () => {
     const t = current();
     btn.textContent = t === "light" ? "\u263E Dark mode" : "\u2600 Light mode";
@@ -908,7 +906,6 @@ function initTheme() {
     try { localStorage.setItem("theme", next); } catch (e) { /* storage blocked: still works for this visit */ }
     paint();
   });
-  if (mq && mq.addEventListener) mq.addEventListener("change", paint);
   paint();
 }
 initTheme();
