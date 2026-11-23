@@ -15,7 +15,7 @@ Policy applied: the Smoke Test & Quality Instructions (section 2). Everything be
 | ID | Sev | Finding | Evidence | Status |
 |---|---|---|---|---|
 | A1 | S3 | Edge gate checks only that a session cookie exists, not that it is valid | `/app` with a fabricated 43-char `pmos_at` returns 200 and an app shell. With no cookie it returns 307 to login. Shell content was "Loading…" with no data. | Confirmed. Defence in depth, same class as F4. No data seen. |
-| A2 | Unresolved, potentially S1/S2 | Browser-side API calls via `/api/backend/*` return 401 even with a freshly issued valid session, while the dashboard still renders portfolio figures | After a successful login: `GET /api/backend/auth/me` returns 401 both before and after page reload, with the cookie attached (cookie flags: HttpOnly, Secure, SameSite=Lax, 7 days). Same 401 with the token sent as a Bearer header via curl. No data API calls were visible from the browser, yet the dashboard shows counts. | Mechanism NOT established. |
+| A2 | Probably a test artifact of my own setup (see Correction). Unconfirmed. | Browser-side API calls via `/api/backend/*` return 401 even with a freshly issued valid session, while the dashboard still renders portfolio figures | After a successful login: `GET /api/backend/auth/me` returns 401 both before and after page reload, with the cookie attached (cookie flags: HttpOnly, Secure, SameSite=Lax, 7 days). Same 401 with the token sent as a Bearer header via curl. No data API calls were visible from the browser, yet the dashboard shows counts. | Mechanism NOT established. |
 | A3 | S3 | Every page load calls `/api/backend/health` which returns 404 | Reconfirmed on authenticated and unauthenticated loads | Same as F1 |
 | A4 | Info | Observed latencies: first login about 10 s end to end; page loads 2.3 to 3.6 s to network idle | Timings from headless Chromium through a proxy | Consistent with Render cold start (P2) but not verified. Not a clean benchmark. |
 | A5 | Info | Object IDs are small sequential integers (organization 15, units 130 to 134, work orders 50 to 72) | Visible in API paths | Makes the N1 ID-swap sweep high value. Nothing tested, since only one org is available to me. |
@@ -43,3 +43,12 @@ Why this is not closed: confirming or ruling out H1 to H3 needs Vercel and Rende
 - N1, N14, F32 and F42 (isolation and cross-portal) need at least two orgs and tokens for each portal.
 - Billing (F52 to F57) needs team sign-off and ideally Stripe test mode.
 - [NO-LIVE] checks (F55, F56, N22 to N30) need a non-production environment. None exists, so these stay untested and must be stated as such in release sign-offs.
+
+## Correction to A2 (added same day)
+The most likely cause of A2 is something I did, not a product defect. Earlier I saved a Basic-auth credential for this host in the session's credential vault. That vault works by having the sandbox proxy attach the saved credential to every request to the host, overwriting any `Authorization` header. If the Portivo proxy or backend sees `Authorization: Basic ...` it can reject the request as unauthenticated and ignore the session cookie. That fits every observation:
+- client-side API calls with a valid session cookie return 401;
+- sending my own Bearer header also returned 401 (the proxy would have overwritten it);
+- the dashboard still showed data, because server-side rendering calls the backend directly and is not affected by my proxy.
+
+Status: plausible and consistent with the evidence, but NOT confirmed. The test that would confirm it is removing the saved credential and repeating the login-and-reload check. Until that is done, A2 must not be reported to the Portivo team as a bug. The first report's A1 (cookie-presence gate) is independent and stands.
+Action for owner: remove the saved "Portivo demo account" network secret for portivoestatesuite.com in the environment settings. I have no tool that can remove it.

@@ -1,0 +1,14 @@
+{
+  "_note": "Maps check IDs to already-reported findings. A failing check listed here is reported as KNOWN, not as a new regression. A passing check listed here is reported as RESOLVED? so someone verifies and removes it.",
+  "known": {
+    "P08": "F2 (CSP unsafe-eval)",
+    "P09": "F2 (CSP unsafe-inline)",
+    "P10": "F3 (CSP allows direct backend host)",
+    "P15": "A1 (edge gate trusts cookie presence)",
+    "P18": "F1 (health endpoint 404)",
+    "P19": "F11 (no security.txt)",
+    "B06": "F10 (Unsplash hotlinking before consent)",
+    "B09": "F7 (non-unique page titles)"
+  },
+  "axeLandingBaseline": { "color-contrast": 29, "heading-order": 4, "region": 34 }
+}

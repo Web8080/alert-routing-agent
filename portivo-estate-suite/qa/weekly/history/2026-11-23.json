@@ -1,0 +1,257 @@
+{
+  "summary": {
+    "date": "2026-11-23",
+    "pass": 23,
+    "fail": 0,
+    "known": 8,
+    "resolved": 0,
+    "skipped": 1
+  },
+  "metrics": {
+    "login_load_ms": 1357,
+    "axe_landing": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "nodes": 29
+      },
+      {
+        "id": "heading-order",
+        "impact": "moderate",
+        "nodes": 4
+      },
+      {
+        "id": "region",
+        "impact": "moderate",
+        "nodes": 34
+      }
+    ],
+    "axe_login": []
+  },
+  "results": [
+    {
+      "id": "P00",
+      "name": "Site reachable (home and login return 200)",
+      "status": "PASS",
+      "known": null,
+      "detail": "home=200 login=200"
+    },
+    {
+      "id": "P01",
+      "name": "HTTP redirects to HTTPS",
+      "status": "PASS",
+      "known": null,
+      "detail": "status=308"
+    },
+    {
+      "id": "P02",
+      "name": "HSTS with max-age >= 1 year",
+      "status": "PASS",
+      "known": null,
+      "detail": "max-age=63072000; includeSubDomains; preload"
+    },
+    {
+      "id": "P03",
+      "name": "Clickjacking protection (frame-ancestors none or XFO DENY)",
+      "status": "PASS",
+      "known": null,
+      "detail": ""
+    },
+    {
+      "id": "P04",
+      "name": "X-Content-Type-Options nosniff",
+      "status": "PASS",
+      "known": null,
+      "detail": ""
+    },
+    {
+      "id": "P05",
+      "name": "Referrer-Policy present",
+      "status": "PASS",
+      "known": null,
+      "detail": "strict-origin-when-cross-origin"
+    },
+    {
+      "id": "P06",
+      "name": "Permissions-Policy present",
+      "status": "PASS",
+      "known": null,
+      "detail": ""
+    },
+    {
+      "id": "P07",
+      "name": "CSP present",
+      "status": "PASS",
+      "known": null,
+      "detail": ""
+    },
+    {
+      "id": "P08",
+      "name": "CSP script-src has no 'unsafe-eval'",
+      "status": "KNOWN",
+      "known": "F2 (CSP unsafe-eval)",
+      "detail": "'self' 'unsafe-inline' 'unsafe-eval'"
+    },
+    {
+      "id": "P09",
+      "name": "CSP script-src has no 'unsafe-inline'",
+      "status": "KNOWN",
+      "known": "F2 (CSP unsafe-inline)",
+      "detail": "'self' 'unsafe-inline' 'unsafe-eval'"
+    },
+    {
+      "id": "P10",
+      "name": "CSP connect-src has no direct onrender.com backend host",
+      "status": "KNOWN",
+      "known": "F3 (CSP allows direct backend host)",
+      "detail": "'self' https://pmos-backend.onrender.com https://api.portivoestatesuite.com https://*.supabase.co https://o4511615712821248.ingest.de.sentry.io"
+    },
+    {
+      "id": "P11",
+      "name": "TRACE method blocked",
+      "status": "PASS",
+      "known": null,
+      "detail": "status=403"
+    },
+    {
+      "id": "P12",
+      "name": "/.env and /.git/config not exposed",
+      "status": "PASS",
+      "known": null,
+      "detail": "env=404 git=404"
+    },
+    {
+      "id": "P13",
+      "name": "Path traversal not served",
+      "status": "PASS",
+      "known": null,
+      "detail": "status=403"
+    },
+    {
+      "id": "P14",
+      "name": "Unauthenticated /app and /tenant routes redirect to /login",
+      "status": "PASS",
+      "known": null,
+      "detail": "/app=307 /app/settings=307 /app/arrears=307 /tenant=307"
+    },
+    {
+      "id": "P15",
+      "name": "Edge gate rejects a fabricated session cookie",
+      "status": "KNOWN",
+      "known": "A1 (edge gate trusts cookie presence)",
+      "detail": "status=200"
+    },
+    {
+      "id": "P16",
+      "name": "API does not reflect a hostile Origin",
+      "status": "PASS",
+      "known": null,
+      "detail": "none"
+    },
+    {
+      "id": "P17",
+      "name": "Unauthenticated API returns clean 401 JSON",
+      "status": "PASS",
+      "known": null,
+      "detail": "status=401"
+    },
+    {
+      "id": "P18",
+      "name": "Health endpoint answers 200",
+      "status": "KNOWN",
+      "known": "F1 (health endpoint 404)",
+      "detail": "status=404"
+    },
+    {
+      "id": "P19",
+      "name": "security.txt published",
+      "status": "KNOWN",
+      "known": "F11 (no security.txt)",
+      "detail": "status=404"
+    },
+    {
+      "id": "P20",
+      "name": "Every sitemap URL returns 200",
+      "status": "PASS",
+      "known": null,
+      "detail": "urls=6 bad="
+    },
+    {
+      "id": "P21",
+      "name": "404 page served for unknown route",
+      "status": "PASS",
+      "known": null,
+      "detail": "status=404"
+    },
+    {
+      "id": "B01",
+      "name": "Login page renders email, password (masked) and submit",
+      "status": "PASS",
+      "known": null,
+      "detail": "load=1357ms"
+    },
+    {
+      "id": "B02",
+      "name": "Login inputs labelled with autocomplete",
+      "status": "PASS",
+      "known": null,
+      "detail": "[{\"labelled\":true,\"ac\":\"email\"},{\"labelled\":true,\"ac\":\"current-password\"}]"
+    },
+    {
+      "id": "B03",
+      "name": "No horizontal overflow at 375px",
+      "status": "PASS",
+      "known": null,
+      "detail": ""
+    },
+    {
+      "id": "B04",
+      "name": "No unexpected console errors on public pages",
+      "status": "PASS",
+      "known": null,
+      "detail": ""
+    },
+    {
+      "id": "B05",
+      "name": "No analytics/error-tracking requests before consent",
+      "status": "PASS",
+      "known": null,
+      "detail": "images.unsplash.com"
+    },
+    {
+      "id": "B06",
+      "name": "No third-party image hotlinking before consent",
+      "status": "KNOWN",
+      "known": "F10 (Unsplash hotlinking before consent)",
+      "detail": "images.unsplash.com"
+    },
+    {
+      "id": "B07",
+      "name": "Landing page: no NEW or worse accessibility violations vs baseline",
+      "status": "PASS",
+      "known": null,
+      "detail": "current=color-contrast:29,heading-order:4,region:34 worse="
+    },
+    {
+      "id": "B08",
+      "name": "Login page: zero accessibility violations",
+      "status": "PASS",
+      "known": null,
+      "detail": ""
+    },
+    {
+      "id": "B09",
+      "name": "Distinct page titles for /, /login, /admin",
+      "status": "KNOWN",
+      "known": "F7 (non-unique page titles)",
+      "detail": "{\"/\":\"Portivo Estate Suite — Property operations without the chaos\",\"/login\":\"Portivo Estate Suite — Property operations without the chaos\",\"/admin\":\"Portivo Estate Suite — Property operations without the chaos\"}"
+    },
+    {
+      "id": "A00",
+      "name": "Authenticated section (login + page loads)",
+      "status": "SKIP",
+      "known": null,
+      "detail": "PORTIVO_EMAIL/PORTIVO_PASS not provided to this run; NOT TESTED"
+    }
+  ]
+}
