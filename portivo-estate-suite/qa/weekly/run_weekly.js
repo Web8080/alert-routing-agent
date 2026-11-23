@@ -16,8 +16,10 @@ const AXE_BASE = KNOWN.axeLandingBaseline;
 const results = [];
 const metrics = {};
 
+let netErr = false; // set when any HTTP request in the current check failed at network level
 function add(id, name, ok, detail) {
   const known = KNOWN.known[id];
+  if (netErr) { ok = null; detail = 'NETWORK ERROR, inconclusive (not a pass, not a fail). ' + (detail || ''); netErr = false; }
   let status = ok === null ? 'SKIP' : ok ? (known ? 'RESOLVED?' : 'PASS') : (known ? 'KNOWN' : 'FAIL');
   results.push({ id, name, status, known: known || null, detail: String(detail || '').slice(0, 300) });
 }
@@ -33,7 +35,10 @@ function curl(url, { method = 'GET', headers = {}, cookie, pathAsIs = false } = 
   if (cookie) args.push('-b', cookie);
   args.push(url);
   let out;
-  try { out = execFileSync('curl', args, { encoding: 'utf8', maxBuffer: 20e6 }); } catch (e) { return { status: 0, headers: {}, body: '', err: e.message.split('\n')[0] }; }
+  for (let attempt = 1; attempt <= 3 && out === undefined; attempt++) {
+    try { out = execFileSync('curl', args, { encoding: 'utf8', maxBuffer: 20e6, stdio: ['ignore', 'pipe', 'ignore'] }); } catch (e) { out = undefined; }
+  }
+  if (out === undefined) { netErr = true; return { status: 0, headers: {}, body: '', err: 'network error after 3 attempts' }; }
   const blocks = out.split('\r\n\r\n').filter((b, i) => !(i === 0 && /Connection Established/i.test(b)));
   const head = blocks[0] || '';
   const lines = head.split('\r\n');

@@ -8,7 +8,7 @@
     "skipped": 1
   },
   "metrics": {
-    "login_load_ms": 1357,
+    "login_load_ms": 1390,
     "axe_landing": [
       {
         "id": "color-contrast",
@@ -188,7 +188,7 @@
       "name": "Login page renders email, password (masked) and submit",
       "status": "PASS",
       "known": null,
-      "detail": "load=1357ms"
+      "detail": "load=1390ms"
     },
     {
       "id": "B02",
