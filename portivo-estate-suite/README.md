@@ -1,12 +1,14 @@
 # Portivo Estate Suite
 
-Status: scaffold only. No requirements, architecture or code exist yet.
+Property management product. Status: pre-build. No requirements, architecture or code yet.
 
-## Layout
-- docs/adr/  Architecture Decision Records
-- src/       Application code
-- tests/     Tests
+## Docs
+- docs/quality/CHARTER.md           Quality and support function charter
+- docs/quality/RISK_AND_TEST_MAP.md Risk-based test map (hypotheses)
+- docs/DECISIONS.md                 Decision register
+- docs/adr/                         Architecture Decision Records
 
 ## Next
-1. Discovery: problem, users, outcomes, data sources, integrations, constraints.
-2. Architecture and decision register.
+1. Confirm jurisdiction, users, payment handling, stack.
+2. Requirements with testable acceptance criteria.
+3. Architecture.
