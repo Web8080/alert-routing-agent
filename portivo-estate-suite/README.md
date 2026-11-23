@@ -5,6 +5,7 @@ Property management product. Status: pre-build. No requirements, architecture or
 ## Docs
 - docs/quality/CHARTER.md           Quality and support function charter
 - docs/quality/RISK_AND_TEST_MAP.md Risk-based test map (hypotheses)
+- docs/quality/reports/             Test reports (first: 2026-11-23 public surface)
 - docs/DECISIONS.md                 Decision register
 - docs/adr/                         Architecture Decision Records
 
